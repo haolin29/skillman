@@ -1,6 +1,6 @@
 {
-  "name": "@haolin206/skillman",
-  "version": "1.0.0",
+  "name": "@haolin-ai/skillman",
+  "version": "1.0.1",
   "description": "A CLI tool to install AI agent skills across multiple platforms",
   "type": "module",
   "bin": {

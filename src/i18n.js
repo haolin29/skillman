@@ -34,6 +34,7 @@ const translations = {
     // Steps
     'step.scan': '扫描可安装的 Skills...',
     'step.select_skill': '选择要安装的 Skill',
+    'step.select_skills': '选择要安装的 Skills（空格选择，回车确认）',
     'step.select_agent': '选择目标 Agent',
     'step.select_scope': '选择安装范围',
     'step.install': '开始安装...',
@@ -43,6 +44,7 @@ const translations = {
     'msg.found_skills': '找到 {count} 个 skill',
     'msg.no_skills': '当前目录未找到任何 skill (需要包含 SKILL.md 的文件夹)',
     'msg.selected': '选择',
+    'msg.selected_count': '已选择 {count} 个',
     'msg.agent': 'Agent',
     'msg.scope': '范围',
     'msg.location': '位置',
@@ -57,6 +59,11 @@ const translations = {
     'msg.dry_run_hint': '使用 --dry-run 预览，未执行任何操作',
     'msg.skill_exists': '该 skill 已存在',
     'msg.install_cancelled': '安装已取消',
+    'msg.downloading': '正在下载...',
+    'msg.downloaded': '下载完成',
+    'msg.installing': '正在安装',
+    'msg.skipped': '已跳过',
+    'msg.installed': '已安装',
     
     // Prompts
     'prompt.workspace_path': '输入 Workspace 路径',
@@ -72,6 +79,7 @@ const translations = {
     // Errors
     'error.empty_path': '路径不能为空',
     'error.not_implemented': '该命令尚未实现，请使用交互模式',
+    'error.no_selection': '请至少选择一个 skill',
     
     // Help
     'help.usage': '用法',
@@ -94,6 +102,7 @@ const translations = {
     // Steps
     'step.scan': 'Scanning available skills...',
     'step.select_skill': 'Select skill to install',
+    'step.select_skills': 'Select skills to install (space to select, enter to confirm)',
     'step.select_agent': 'Select target agent',
     'step.select_scope': 'Select installation scope',
     'step.install': 'Starting installation...',
@@ -103,6 +112,7 @@ const translations = {
     'msg.found_skills': 'Found {count} skill(s)',
     'msg.no_skills': 'No skills found in current directory (folders with SKILL.md required)',
     'msg.selected': 'Selected',
+    'msg.selected_count': 'Selected {count}',
     'msg.agent': 'Agent',
     'msg.scope': 'Scope',
     'msg.location': 'Location',
@@ -117,6 +127,11 @@ const translations = {
     'msg.dry_run_hint': 'Running with --dry-run, no changes made',
     'msg.skill_exists': 'Skill already exists',
     'msg.install_cancelled': 'Installation cancelled',
+    'msg.downloading': 'Downloading...',
+    'msg.downloaded': 'Downloaded',
+    'msg.installing': 'Installing',
+    'msg.skipped': 'Skipped',
+    'msg.installed': 'Installed',
     
     // Prompts
     'prompt.workspace_path': 'Enter workspace path',
@@ -132,6 +147,7 @@ const translations = {
     // Errors
     'error.empty_path': 'Path cannot be empty',
     'error.not_implemented': 'Command not implemented, use interactive mode',
+    'error.no_selection': 'Please select at least one skill',
     
     // Help
     'help.usage': 'Usage',

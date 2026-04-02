@@ -5,12 +5,13 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { select, confirm, input, Separator } from '@inquirer/prompts';
+import { select, confirm, input, Separator, checkbox } from '@inquirer/prompts';
 import { scanSkills } from './scanner.js';
 import { installSkill } from './installer.js';
 import { loadAgents } from './config.js';
 import { t } from './i18n.js';
-import { loadHistory, addWorkspace } from './history.js';
+import { loadHistory, addWorkspace, saveLastUsed } from './history.js';
+import { downloadSkill, parseUrl, cleanupDownloads } from './downloader.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VERSION = '1.0.0';
@@ -71,6 +72,7 @@ function showHelp() {
 ${c.cyan}${t('help.usage')}:${c.reset}
   skillman                    ${t('help.cmd.interactive')}
   skillman install <path>     ${t('help.cmd.install')}
+  skillman i <path>           ${t('help.cmd.install')}
   skillman agents             ${t('help.cmd.agents')}
 
 ${c.cyan}${t('help.options')}:${c.reset}
@@ -82,6 +84,7 @@ ${c.cyan}${t('help.examples')}:${c.reset}
   skillman                     # ${t('help.cmd.interactive')}
   skillman --dry-run           # ${t('help.opt.dry_run')}
   skillman install ./my-skill  # ${t('help.cmd.install')}
+  skillman i github.com/owner/repo  # ${t('help.cmd.install')}
   skillman agents              # ${t('help.cmd.agents')}
 `);
 }
@@ -105,14 +108,32 @@ async function listAgents() {
   }
 }
 
-// Interactive install flow
-async function interactiveInstall(dryRun) {
+// Install from URL or local path
+async function installFromUrl(url, dryRun) {
   console.log(`${c.green}${t('app.name')}${c.reset} - ${t('app.description')}${dryRun ? c.yellow + ' [DRY-RUN]' + c.reset : ''}\n`);
 
-  // Step 1: Scan skills
+  const parsed = parseUrl(url);
+  const isRemote = parsed.type !== 'local';
+
+  // Step 1: Download/resolve path
+  let sourcePath;
+  if (isRemote) {
+    log.step(t('msg.downloading') || 'Downloading...');
+    try {
+      sourcePath = await downloadSkill(url);
+      log.success(t('msg.downloaded') || 'Downloaded');
+    } catch (error) {
+      log.error(error.message);
+      process.exit(1);
+    }
+  } else {
+    sourcePath = url;
+  }
+
+  // Step 2: Scan skills
   log.step(t('step.scan'));
+  const skills = await scanSkills(sourcePath);
   
-  const skills = await scanSkills(process.cwd());
   if (skills.length === 0) {
     log.error(t('msg.no_skills'));
     process.exit(1);
@@ -120,25 +141,57 @@ async function interactiveInstall(dryRun) {
 
   log.success(t('msg.found_skills', { count: skills.length }));
 
-  // Step 2: Select skill
-  const skillChoices = skills.map(s => ({
-    name: s.description 
-      ? `${s.name} ${c.gray}(${s.description.slice(0, 40)}${s.description.length > 40 ? '...' : ''})${c.reset}`
-      : s.name,
-    value: s
-  }));
+  // Step 3: Select skills (if multiple)
+  let selectedSkills;
+  if (skills.length === 1) {
+    selectedSkills = [skills[0]];
+    log.success(`${t('msg.selected')}: ${skills[0].name}`);
+  } else {
+    const skillChoices = skills.map(s => ({
+      name: s.description 
+        ? `${s.name} ${c.gray}(${s.description.slice(0, 40)}${s.description.length > 40 ? '...' : ''})${c.reset}`
+        : s.name,
+      value: s
+    }));
 
-  const selectedSkill = await select({
-    message: t('step.select_skill') + ':',
-    choices: skillChoices,
-    pageSize: 10
-  });
+    selectedSkills = await checkbox({
+      message: t('step.select_skills') + ':',
+      choices: skillChoices,
+      pageSize: 10,
+      loop: false,
+      validate: (selected) => {
+        if (selected.length === 0) {
+          return t('error.no_selection') || 'Please select at least one skill';
+        }
+        return true;
+      }
+    });
 
-  log.success(`${t('msg.selected')}: ${selectedSkill.name}`);
+    log.success(`${t('msg.selected_count', { count: selectedSkills.length })}`);
+  }
 
-  // Step 3: Select agent
+  // Continue with rest of interactive flow
+  await continueInstallMultiple(selectedSkills, dryRun);
+
+  // Cleanup temp downloads
+  if (isRemote) {
+    await cleanupDownloads();
+  }
+}
+
+// Continue installation after skill selection (multiple skills)
+async function continueInstallMultiple(selectedSkills, dryRun) {
+  // Load last used preferences
+  const { lastAgent, lastScope } = await loadHistory();
   const agents = await loadAgents();
-  const agentChoices = Object.values(agents).map(a => ({
+  
+  // Step 4: Select agent (with default from history)
+  const agentList = Object.values(agents);
+  const defaultAgentIndex = lastAgent 
+    ? agentList.findIndex(a => a.name === lastAgent)
+    : -1;
+  
+  const agentChoices = agentList.map(a => ({
     name: a.displayName,
     value: a
   }));
@@ -146,31 +199,42 @@ async function interactiveInstall(dryRun) {
   const agent = await select({
     message: t('step.select_agent') + ':',
     choices: agentChoices,
-    pageSize: 10
+    pageSize: 10,
+    default: defaultAgentIndex >= 0 ? agentChoices[defaultAgentIndex].value : undefined
   });
 
   log.success(`${t('msg.agent')}: ${agent.displayName}`);
 
-  // Step 4: Select scope
+  // Step 5: Select scope (with default from history)
+  const scopeChoices = [
+    { name: `${t('option.global')} ${c.gray}(${agent.globalSkillsDir})${c.reset}`, value: 'global' },
+    { name: `${t('option.workspace')} ${c.gray}(${t('option.custom_path')})${c.reset}`, value: 'workspace' }
+  ];
+  
+  const defaultScopeIndex = lastScope 
+    ? scopeChoices.findIndex(s => s.value === lastScope)
+    : -1;
+
   const scope = await select({
     message: t('step.select_scope') + ':',
-    choices: [
-      { name: `${t('option.global')} ${c.gray}(${agent.globalSkillsDir})${c.reset}`, value: 'global' },
-      { name: `${t('option.workspace')} ${c.gray}(${t('option.custom_path')})${c.reset}`, value: 'workspace' }
-    ]
+    choices: scopeChoices,
+    default: defaultScopeIndex >= 0 ? scopeChoices[defaultScopeIndex].value : undefined
   });
 
-  // Step 5: If workspace scope, ask for workspace path
+  // Save preferences for next time
+  await saveLastUsed(agent.name, scope);
+
+  // Step 6: If workspace scope, ask for workspace path
   let workspacePath = agent.skillsDir;
   if (scope === 'workspace') {
-    const history = await loadHistory(agent.name);
+    const { workspaces } = await loadHistory(agent.name);
     
     let customPath;
     
-    if (history.length > 0) {
+    if (workspaces.length > 0) {
       // Show history choices with separator
       const historyChoices = [
-        ...history.map((h, idx) => ({
+        ...workspaces.map((h, idx) => ({
           name: `${idx + 1}. ${h}`,
           value: h
         })),
@@ -218,62 +282,114 @@ async function interactiveInstall(dryRun) {
     log.info(`${t('msg.workspace_dir')}: ${workspacePath}`);
   }
 
-  // Step 6: Calculate target path
-  const targetDir = scope === 'global'
-    ? path.join(agent.globalSkillsDir, selectedSkill.name)
-    : path.join(workspacePath, selectedSkill.name);
-
-  // Dry-run preview
+  // Dry-run preview for all skills
   if (dryRun) {
     log.step(t('step.preview'));
-    log.dry(`${t('msg.source')}: ${selectedSkill.path}`);
-    log.dry(`${t('msg.target')}: ${targetDir}`);
     
-    try {
-      await fs.access(targetDir);
-      log.dry(t('msg.exists'));
-    } catch {
-      log.dry(t('msg.not_exists'));
+    for (const skill of selectedSkills) {
+      const targetDir = scope === 'global'
+        ? path.join(agent.globalSkillsDir, skill.name)
+        : path.join(workspacePath, skill.name);
+      
+      log.dry(`\n${skill.name}:`);
+      log.dry(`  ${t('msg.source')}: ${skill.path}`);
+      log.dry(`  ${t('msg.target')}: ${targetDir}`);
+      
+      try {
+        await fs.access(targetDir);
+        log.dry(`  ${t('msg.exists')}`);
+      } catch {
+        log.dry(`  ${t('msg.not_exists')}`);
+      }
     }
     
-    log.dry(t('msg.copy'));
-    
     console.log(`\n${c.yellow}📋 ${t('msg.preview_summary')}${c.reset}\n`);
-    console.log(`  Skill:    ${selectedSkill.name}`);
+    console.log(`  ${t('msg.selected_count', { count: selectedSkills.length })}`);
     console.log(`  ${t('msg.agent')}:    ${agent.displayName}`);
     console.log(`  ${t('msg.scope')}:    ${scope}`);
-    console.log(`  ${t('msg.location')}: ${targetDir}`);
     console.log(`\n${c.gray}${t('msg.dry_run_hint')}${c.reset}\n`);
     return;
   }
 
-  // Step 6: Install
+  // Step 8: Install all skills
   log.step(t('step.install'));
   
-  // Check if already exists
-  try {
-    await fs.access(targetDir);
-    log.warn(t('msg.skill_exists'));
-    const overwrite = await confirm({ message: t('prompt.overwrite') + '?', default: false });
-    if (!overwrite) {
-      log.info(t('msg.install_cancelled'));
-      process.exit(0);
+  let installedCount = 0;
+  let skippedCount = 0;
+  
+  for (const skill of selectedSkills) {
+    const targetDir = scope === 'global'
+      ? path.join(agent.globalSkillsDir, skill.name)
+      : path.join(workspacePath, skill.name);
+    
+    log.step(`${t('msg.installing') || 'Installing'}: ${skill.name}`);
+    
+    // Check if already exists
+    let shouldInstall = true;
+    try {
+      await fs.access(targetDir);
+      log.warn(t('msg.skill_exists'));
+      const overwrite = await confirm({ message: t('prompt.overwrite') + '?', default: false });
+      if (!overwrite) {
+        log.info(t('msg.skipped') || 'Skipped');
+        skippedCount++;
+        shouldInstall = false;
+      }
+    } catch {
+      // Directory doesn't exist, proceed
     }
-  } catch {
-    // Directory doesn't exist, proceed
+    
+    if (shouldInstall) {
+      await installSkill(skill.path, targetDir);
+      log.success(`${t('msg.target')}: ${targetDir}`);
+      installedCount++;
+    }
   }
-
-  // Install
-  await installSkill(selectedSkill.path, targetDir);
-  log.success(`${t('msg.target')}: ${targetDir}`);
 
   // Summary
   console.log(`\n${c.green}✨ ${t('msg.install_complete')}${c.reset}\n`);
-  console.log(`  Skill:    ${selectedSkill.name}`);
+  console.log(`  ${t('msg.installed') || 'Installed'}: ${installedCount}`);
+  if (skippedCount > 0) {
+    console.log(`  ${t('msg.skipped') || 'Skipped'}: ${skippedCount}`);
+  }
   console.log(`  ${t('msg.agent')}:    ${agent.displayName}`);
   console.log(`  ${t('msg.scope')}:    ${scope}`);
-  console.log(`  ${t('msg.location')}: ${targetDir}`);
   console.log();
+}
+
+// Interactive install flow
+async function interactiveInstall(dryRun) {
+  console.log(`${c.green}${t('app.name')}${c.reset} - ${t('app.description')}${dryRun ? c.yellow + ' [DRY-RUN]' + c.reset : ''}\n`);
+
+  // Step 1: Scan skills
+  log.step(t('step.scan'));
+  
+  const skills = await scanSkills(process.cwd());
+  if (skills.length === 0) {
+    log.error(t('msg.no_skills'));
+    process.exit(1);
+  }
+
+  log.success(t('msg.found_skills', { count: skills.length }));
+
+  // Step 2: Select skill
+  const skillChoices = skills.map(s => ({
+    name: s.description 
+      ? `${s.name} ${c.gray}(${s.description.slice(0, 40)}${s.description.length > 40 ? '...' : ''})${c.reset}`
+      : s.name,
+    value: s
+  }));
+
+  const selectedSkill = await select({
+    message: t('step.select_skill') + ':',
+    choices: skillChoices,
+    pageSize: 10
+  });
+
+  log.success(`${t('msg.selected')}: ${selectedSkill.name}`);
+
+  // Continue with agent selection and installation
+  await continueInstall(selectedSkill, dryRun);
 }
 
 // Main CLI function
@@ -296,9 +412,10 @@ export async function cli() {
     return;
   }
 
-  if (options.command === 'install') {
-    log.error(t('error.not_implemented'));
-    process.exit(1);
+  if (options.command === 'install' || options.command === 'i') {
+    const url = options.positional[0] || process.cwd();
+    await installFromUrl(url, options.dryRun);
+    return;
   }
 
   // Default: interactive install

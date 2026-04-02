@@ -1,17 +1,21 @@
 /**
  * Skill Scanner
  * Scans a directory for installable skills (folders with SKILL.md)
+ * Also checks common skill subdirectories like 'skills/'
  */
 
 import fs from 'fs/promises';
 import path from 'path';
 
+// Common skill container directories
+const SKILL_CONTAINERS = ['skills', '.agents/skills', '.claude/skills'];
+
 /**
- * Scan directory for skills
+ * Scan a single directory for skills
  * @param {string} dir - Directory to scan
- * @returns {Promise<Array<{name: string, path: string, description: string}>>}
+ * @returns {Promise<Array>} Found skills
  */
-export async function scanSkills(dir) {
+async function scanSingleDir(dir) {
   const skills = [];
   
   try {
@@ -40,9 +44,38 @@ export async function scanSkills(dir) {
         // No SKILL.md or parse error, skip
       }
     }
-  } catch (err) {
+  } catch {
     // Directory read error
   }
   
   return skills;
+}
+
+/**
+ * Scan directory for skills
+ * @param {string} dir - Directory to scan
+ * @returns {Promise<Array<{name: string, path: string, description: string}>>}
+ */
+export async function scanSkills(dir) {
+  // First scan root directory
+  const skills = await scanSingleDir(dir);
+  if (skills.length > 0) {
+    return skills;
+  }
+  
+  // If no skills found, check common skill container directories
+  for (const container of SKILL_CONTAINERS) {
+    const containerPath = path.join(dir, container);
+    try {
+      await fs.access(containerPath);
+      const containerSkills = await scanSingleDir(containerPath);
+      if (containerSkills.length > 0) {
+        return containerSkills;
+      }
+    } catch {
+      // Container doesn't exist, skip
+    }
+  }
+  
+  return [];
 }
