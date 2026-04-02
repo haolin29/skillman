@@ -11,7 +11,7 @@ agents:
   openclaw:
     name: openclaw
     displayName: OpenClaw
-    skillsDir: ~/.openclaw/workspace/skills
+    skillsDir: skills
     globalSkillsDir: ~/.openclaw/skills
 
   qoder:

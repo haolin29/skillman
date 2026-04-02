@@ -5,10 +5,11 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { select, confirm } from '@inquirer/prompts';
+import { select, confirm, input } from '@inquirer/prompts';
 import { scanSkills } from './scanner.js';
 import { installSkill } from './installer.js';
 import { loadAgents } from './config.js';
+import { t } from './i18n.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VERSION = '1.0.0';
@@ -64,59 +65,59 @@ function parseArgs(args) {
 
 // Show help
 function showHelp() {
-  console.log(`${c.green}Skillman${c.reset} - AI Agent Skill Installer
+  console.log(`${c.green}${t('app.name')}${c.reset} - ${t('app.description')}
 
-${c.cyan}Usage:${c.reset}
-  skillman                    Interactive install (scan current directory)
-  skillman install <path>     Install skill from path
-  skillman agents             List available agents
+${c.cyan}${t('help.usage')}:${c.reset}
+  skillman                    ${t('help.cmd.interactive')}
+  skillman install <path>     ${t('help.cmd.install')}
+  skillman agents             ${t('help.cmd.agents')}
 
-${c.cyan}Options:${c.reset}
-  -n, --dry-run    Preview installation without making changes
-  -v, --version    Show version number
-  -h, --help       Show this help message
+${c.cyan}${t('help.options')}:${c.reset}
+  -n, --dry-run    ${t('help.opt.dry_run')}
+  -v, --version    ${t('help.opt.version')}
+  -h, --help       ${t('help.opt.help')}
 
-${c.cyan}Examples:${c.reset}
-  skillman                     # Interactive mode
-  skillman --dry-run           # Preview installation
-  skillman install ./my-skill  # Install specific skill
-  skillman agents              # List agents
+${c.cyan}${t('help.examples')}:${c.reset}
+  skillman                     # ${t('help.cmd.interactive')}
+  skillman --dry-run           # ${t('help.opt.dry_run')}
+  skillman install ./my-skill  # ${t('help.cmd.install')}
+  skillman agents              # ${t('help.cmd.agents')}
 `);
 }
 
 // Show version
 function showVersion() {
-  console.log(`skillman v${VERSION}`);
+  console.log(`${t('app.name').toLowerCase()} v${VERSION}`);
 }
 
 // List agents
 async function listAgents() {
   const agents = await loadAgents();
   
-  console.log(`\n${c.cyan}Available Agents:${c.reset}\n`);
+  console.log(`\n${c.cyan}${t('msg.agent')}:${c.reset}\n`);
   
   for (const [name, agent] of Object.entries(agents)) {
     console.log(`  ${c.green}${agent.displayName}${c.reset} (${name})`);
-    console.log(`    global:    ${c.gray}${agent.globalSkillsDir}${c.reset}`);
-    console.log(`    workspace: ${c.gray}${agent.skillsDir}${c.reset}`);
+    console.log(`    ${t('option.global')}:    ${c.gray}${agent.globalSkillsDir}${c.reset}`);
+    console.log(`    ${t('option.workspace')}: ${c.gray}${agent.skillsDir}${c.reset}`);
     console.log();
   }
 }
 
 // Interactive install flow
 async function interactiveInstall(dryRun) {
-  console.log(`${c.green}Skillman${c.reset} - AI Agent Skill Installer${dryRun ? c.yellow + ' [DRY-RUN]' + c.reset : ''}\n`);
+  console.log(`${c.green}${t('app.name')}${c.reset} - ${t('app.description')}${dryRun ? c.yellow + ' [DRY-RUN]' + c.reset : ''}\n`);
 
   // Step 1: Scan skills
-  log.step('扫描可安装的 Skills...');
+  log.step(t('step.scan'));
   
   const skills = await scanSkills(process.cwd());
   if (skills.length === 0) {
-    log.error('当前目录未找到任何 skill (需要包含 SKILL.md 的文件夹)');
+    log.error(t('msg.no_skills'));
     process.exit(1);
   }
 
-  log.success(`找到 ${skills.length} 个 skill`);
+  log.success(t('msg.found_skills', { count: skills.length }));
 
   // Step 2: Select skill
   const skillChoices = skills.map(s => ({
@@ -127,12 +128,12 @@ async function interactiveInstall(dryRun) {
   }));
 
   const selectedSkill = await select({
-    message: '选择要安装的 Skill:',
+    message: t('step.select_skill') + ':',
     choices: skillChoices,
     pageSize: 10
   });
 
-  log.success(`选择: ${selectedSkill.name}`);
+  log.success(`${t('msg.selected')}: ${selectedSkill.name}`);
 
   // Step 3: Select agent
   const agents = await loadAgents();
@@ -142,61 +143,80 @@ async function interactiveInstall(dryRun) {
   }));
 
   const agent = await select({
-    message: '选择目标 Agent:',
+    message: t('step.select_agent') + ':',
     choices: agentChoices,
     pageSize: 10
   });
 
-  log.success(`Agent: ${agent.displayName}`);
+  log.success(`${t('msg.agent')}: ${agent.displayName}`);
 
   // Step 4: Select scope
   const scope = await select({
-    message: '选择安装范围:',
+    message: t('step.select_scope') + ':',
     choices: [
-      { name: `global ${c.gray}(${agent.globalSkillsDir})${c.reset}`, value: 'global' },
-      { name: `workspace ${c.gray}(${agent.skillsDir})${c.reset}`, value: 'workspace' }
+      { name: `${t('option.global')} ${c.gray}(${agent.globalSkillsDir})${c.reset}`, value: 'global' },
+      { name: `${t('option.workspace')} ${c.gray}(${t('option.custom_path')})${c.reset}`, value: 'workspace' }
     ]
   });
 
-  // Step 5: Calculate target path
+  // Step 5: If workspace scope, ask for workspace path
+  let workspacePath = agent.skillsDir;
+  if (scope === 'workspace') {
+    const customPath = await input({
+      message: t('prompt.workspace_path') + ':',
+      default: process.cwd(),
+      validate: (value) => {
+        if (!value.trim()) return t('error.empty_path');
+        return true;
+      }
+    });
+    // Extract relative skills directory from agent config
+    const skillsRelDir = agent.skillsDir.includes(path.sep)
+      ? agent.skillsDir.split(path.sep).slice(-2).join(path.sep)
+      : agent.skillsDir;
+    workspacePath = path.join(customPath.trim(), skillsRelDir);
+    log.info(`${t('msg.workspace_dir')}: ${workspacePath}`);
+  }
+
+  // Step 6: Calculate target path
   const targetDir = scope === 'global'
     ? path.join(agent.globalSkillsDir, selectedSkill.name)
-    : path.join(agent.skillsDir, selectedSkill.name);
+    : path.join(workspacePath, selectedSkill.name);
 
   // Dry-run preview
   if (dryRun) {
-    log.step('预览安装...');
-    log.dry(`源目录: ${selectedSkill.path}`);
-    log.dry(`目标目录: ${targetDir}`);
+    log.step(t('step.preview'));
+    log.dry(`${t('msg.source')}: ${selectedSkill.path}`);
+    log.dry(`${t('msg.target')}: ${targetDir}`);
     
     try {
       await fs.access(targetDir);
-      log.dry('目标已存在，将覆盖');
+      log.dry(t('msg.exists'));
     } catch {
-      log.dry('目标不存在，将创建');
+      log.dry(t('msg.not_exists'));
     }
     
-    log.dry('将复制 skill 文件夹到目标位置');
+    log.dry(t('msg.copy'));
     
-    console.log(`\n${c.yellow}📋 预览摘要${c.reset}\n`);
+    console.log(`\n${c.yellow}📋 ${t('msg.preview_summary')}${c.reset}\n`);
     console.log(`  Skill:    ${selectedSkill.name}`);
-    console.log(`  Agent:    ${agent.displayName}`);
-    console.log(`  Scope:    ${scope}`);
-    console.log(`  Location: ${targetDir}`);
-    console.log(`\n${c.gray}使用 --dry-run 预览，未执行任何操作${c.reset}\n`);
+    console.log(`  ${t('msg.agent')}:    ${agent.displayName}`);
+    console.log(`  ${t('msg.scope')}:    ${scope}`);
+    console.log(`  ${t('msg.location')}: ${targetDir}`);
+    console.log(`\n${c.gray}${t('msg.dry_run_hint')}${c.reset}\n`);
     return;
   }
 
   // Step 6: Install
-  log.step('开始安装...');
+  log.step(t('step.install'));
   
   // Check if already exists
   try {
     await fs.access(targetDir);
-    log.warn('该 skill 已存在');
-    const overwrite = await confirm({ message: '是否覆盖?', default: false });
+    log.warn(t('msg.skill_exists'));
+    const overwrite = await confirm({ message: t('prompt.overwrite') + '?', default: false });
     if (!overwrite) {
-      log.info('安装已取消');
+      log.info(t('msg.install_cancelled'));
       process.exit(0);
     }
   } catch {
@@ -205,14 +225,14 @@ async function interactiveInstall(dryRun) {
 
   // Install
   await installSkill(selectedSkill.path, targetDir);
-  log.success(`已复制到: ${targetDir}`);
+  log.success(`${t('msg.target')}: ${targetDir}`);
 
   // Summary
-  console.log(`\n${c.green}✨ 安装完成!${c.reset}\n`);
+  console.log(`\n${c.green}✨ ${t('msg.install_complete')}${c.reset}\n`);
   console.log(`  Skill:    ${selectedSkill.name}`);
-  console.log(`  Agent:    ${agent.displayName}`);
-  console.log(`  Scope:    ${scope}`);
-  console.log(`  Location: ${targetDir}`);
+  console.log(`  ${t('msg.agent')}:    ${agent.displayName}`);
+  console.log(`  ${t('msg.scope')}:    ${scope}`);
+  console.log(`  ${t('msg.location')}: ${targetDir}`);
   console.log();
 }
 
@@ -237,7 +257,7 @@ export async function cli() {
   }
 
   if (options.command === 'install') {
-    log.error('install 命令尚未实现，请使用交互模式');
+    log.error(t('error.not_implemented'));
     process.exit(1);
   }
 
