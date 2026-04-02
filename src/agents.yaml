@@ -1,0 +1,99 @@
+# Agent Configuration
+# Defines skill installation paths for each supported agent
+
+agents:
+  claude-code:
+    name: claude-code
+    displayName: Claude Code
+    skillsDir: .claude/skills
+    globalSkillsDir: ~/.claude/skills
+
+  openclaw:
+    name: openclaw
+    displayName: OpenClaw
+    skillsDir: ~/.openclaw/workspace/skills
+    globalSkillsDir: ~/.openclaw/skills
+
+  qoder:
+    name: qoder
+    displayName: Qoder
+    skillsDir: .qoder/skills
+    globalSkillsDir: ~/.qoder/skills
+
+  codex:
+    name: codex
+    displayName: Codex
+    skillsDir: .agents/skills
+    globalSkillsDir: ~/.codex/skills
+
+  opencode:
+    name: opencode
+    displayName: OpenCode
+    skillsDir: .agents/skills
+    globalSkillsDir: ~/.config/opencode/skills
+
+  cursor:
+    name: cursor
+    displayName: Cursor
+    skillsDir: .agents/skills
+    globalSkillsDir: ~/.cursor/skills
+
+  cline:
+    name: cline
+    displayName: Cline
+    skillsDir: .agents/skills
+    globalSkillsDir: ~/.agents/skills
+
+  goose:
+    name: goose
+    displayName: Goose
+    skillsDir: .goose/skills
+    globalSkillsDir: ~/.config/goose/skills
+
+  continue:
+    name: continue
+    displayName: Continue
+    skillsDir: .continue/skills
+    globalSkillsDir: ~/.continue/skills
+
+  augment:
+    name: augment
+    displayName: Augment
+    skillsDir: .augment/skills
+    globalSkillsDir: ~/.augment/skills
+
+  github-copilot:
+    name: github-copilot
+    displayName: GitHub Copilot
+    skillsDir: .agents/skills
+    globalSkillsDir: ~/.copilot/skills
+
+  gemini-cli:
+    name: gemini-cli
+    displayName: Gemini CLI
+    skillsDir: .agents/skills
+    globalSkillsDir: ~/.gemini/skills
+
+  pi:
+    name: pi
+    displayName: Pi
+    skillsDir: .pi/skills
+    globalSkillsDir: ~/.pi/agent/skills
+
+  replit:
+    name: replit
+    displayName: Replit
+    skillsDir: .agents/skills
+    globalSkillsDir: ~/.config/agents/skills
+
+  roo:
+    name: roo
+    displayName: Roo Code
+    skillsDir: .roo/skills
+    globalSkillsDir: ~/.roo/skills
+
+  trae:
+    name: trae
+    displayName: Trae
+    skillsDir: .trae/skills
+    globalSkillsDir: ~/.trae/skills
