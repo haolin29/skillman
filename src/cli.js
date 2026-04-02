@@ -5,11 +5,12 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { select, confirm, input } from '@inquirer/prompts';
+import { select, confirm, input, Separator } from '@inquirer/prompts';
 import { scanSkills } from './scanner.js';
 import { installSkill } from './installer.js';
 import { loadAgents } from './config.js';
 import { t } from './i18n.js';
+import { loadHistory, addWorkspace } from './history.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VERSION = '1.0.0';
@@ -162,14 +163,53 @@ async function interactiveInstall(dryRun) {
   // Step 5: If workspace scope, ask for workspace path
   let workspacePath = agent.skillsDir;
   if (scope === 'workspace') {
-    const customPath = await input({
-      message: t('prompt.workspace_path') + ':',
-      default: process.cwd(),
-      validate: (value) => {
-        if (!value.trim()) return t('error.empty_path');
-        return true;
+    const history = await loadHistory(agent.name);
+    
+    let customPath;
+    
+    if (history.length > 0) {
+      // Show history choices with separator
+      const historyChoices = [
+        ...history.map((h, idx) => ({
+          name: `${idx + 1}. ${h}`,
+          value: h
+        })),
+        new Separator(),
+        { name: t('prompt.new_path'), value: '__NEW__' }
+      ];
+      
+      const selected = await select({
+        message: t('prompt.select_workspace') + ':',
+        choices: historyChoices
+      });
+      
+      if (selected === '__NEW__') {
+        customPath = await input({
+          message: t('prompt.workspace_path') + ':',
+          default: process.cwd(),
+          validate: (value) => {
+            if (!value.trim()) return t('error.empty_path');
+            return true;
+          }
+        });
+      } else {
+        customPath = selected;
       }
-    });
+    } else {
+      // No history, ask for input
+      customPath = await input({
+        message: t('prompt.workspace_path') + ':',
+        default: process.cwd(),
+        validate: (value) => {
+          if (!value.trim()) return t('error.empty_path');
+          return true;
+        }
+      });
+    }
+    
+    // Save to history (with agent name)
+    await addWorkspace(agent.name, customPath);
+    
     // Extract relative skills directory from agent config
     const skillsRelDir = agent.skillsDir.includes(path.sep)
       ? agent.skillsDir.split(path.sep).slice(-2).join(path.sep)

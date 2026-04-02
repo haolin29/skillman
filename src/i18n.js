@@ -61,6 +61,8 @@ const translations = {
     // Prompts
     'prompt.workspace_path': '输入 Workspace 路径',
     'prompt.overwrite': '是否覆盖',
+    'prompt.select_workspace': '选择 Workspace 路径',
+    'prompt.new_path': '输入新路径...',
     
     // Options
     'option.global': '全局',
@@ -119,6 +121,8 @@ const translations = {
     // Prompts
     'prompt.workspace_path': 'Enter workspace path',
     'prompt.overwrite': 'Overwrite existing',
+    'prompt.select_workspace': 'Select workspace path',
+    'prompt.new_path': 'Enter new path...',
     
     // Options
     'option.global': 'Global',
