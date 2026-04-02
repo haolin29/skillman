@@ -1,5 +1,5 @@
 {
-  "name": "skillman",
+  "name": "@haolin206/skillman",
   "version": "1.0.0",
   "description": "A CLI tool to install AI agent skills across multiple platforms",
   "type": "module",
@@ -22,6 +22,9 @@
   ],
   "author": "",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@inquirer/prompts": "^7.0.0"
   },
