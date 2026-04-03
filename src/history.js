@@ -7,7 +7,17 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 
-const HISTORY_FILE = path.join(os.homedir(), '.config', 'skillman', 'history.json');
+// Get config directory based on platform
+function getConfigDir() {
+  if (process.platform === 'win32') {
+    // Windows: %APPDATA%/skillman
+    return path.join(process.env.APPDATA || os.homedir(), 'skillman');
+  }
+  // macOS/Linux: ~/.config/skillman (XDG)
+  return path.join(os.homedir(), '.config', 'skillman');
+}
+
+const HISTORY_FILE = path.join(getConfigDir(), 'history.json');
 const MAX_HISTORY_SIZE = 10;
 
 async function ensureDir() {

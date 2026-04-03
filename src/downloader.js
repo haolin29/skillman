@@ -3,7 +3,7 @@
  * Supports GitHub shorthand, full URLs, and git URLs
  */
 
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
@@ -73,10 +73,11 @@ export async function downloadSkill(inputUrl) {
   const downloadDir = path.join(TEMP_DIR, `${repoName}-${timestamp}`);
 
   try {
-    // Clone repository
-    execSync(`git clone --depth 1 "${parsed.url}" "${downloadDir}"`, {
+    // Clone repository using execFileSync for better security
+    execFileSync('git', ['clone', '--depth', '1', parsed.url, downloadDir], {
       stdio: 'pipe',
-      timeout: 60000
+      timeout: 60000,
+      windowsHide: true  // Hide console window on Windows
     });
 
     // If subPath specified, return that subdirectory

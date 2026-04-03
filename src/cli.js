@@ -6,6 +6,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { select, confirm, input, Separator, checkbox } from '@inquirer/prompts';
+import pkg from '../package.json' with { type: 'json' };
 import { scanSkills } from './scanner.js';
 import { installSkill } from './installer.js';
 import { loadAgents } from './config.js';
@@ -14,7 +15,7 @@ import { loadHistory, addWorkspace, saveLastUsed } from './history.js';
 import { downloadSkill, parseUrl, cleanupDownloads } from './downloader.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const VERSION = '1.0.0';
+const VERSION = pkg.version || '1.0.0';
 
 // ANSI colors
 const c = {
