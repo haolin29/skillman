@@ -17,22 +17,33 @@ function getConfigDir() {
   return path.join(os.homedir(), '.config', 'skillman');
 }
 
-const HISTORY_FILE = path.join(getConfigDir(), 'history.json');
+// Allow overriding history file location for testing
+function getHistoryFile() {
+  return process.env.SKILLMAN_HISTORY_FILE 
+    ? process.env.SKILLMAN_HISTORY_FILE
+    : path.join(getConfigDir(), 'history.json');
+}
 const MAX_HISTORY_SIZE = 10;
 
 async function ensureDir() {
-  const dir = path.dirname(HISTORY_FILE);
+  const historyFile = getHistoryFile();
+  const dir = path.dirname(historyFile);
   try {
-    await fs.access(dir);
-  } catch {
     await fs.mkdir(dir, { recursive: true });
+  } catch (err) {
+    // If mkdir fails, try to provide more context
+    if (err.code === 'ENOENT') {
+      throw new Error(`Cannot create directory ${dir}: parent path does not exist`);
+    }
+    throw err;
   }
 }
 
 export async function loadHistory(agentName) {
   try {
     await ensureDir();
-    const data = await fs.readFile(HISTORY_FILE, 'utf8');
+    const historyFile = getHistoryFile();
+    const data = await fs.readFile(historyFile, 'utf8');
     const history = JSON.parse(data);
     return {
       workspaces: history[agentName]?.workspaces || [],
@@ -46,9 +57,10 @@ export async function loadHistory(agentName) {
 
 export async function saveHistory(agentName, workspaces) {
   await ensureDir();
+  const historyFile = getHistoryFile();
   let data = {};
   try {
-    const existing = await fs.readFile(HISTORY_FILE, 'utf8');
+    const existing = await fs.readFile(historyFile, 'utf8');
     data = JSON.parse(existing);
   } catch {
     // File doesn't exist or is invalid
@@ -59,14 +71,15 @@ export async function saveHistory(agentName, workspaces) {
     updatedAt: new Date().toISOString()
   };
   
-  await fs.writeFile(HISTORY_FILE, JSON.stringify(data, null, 2));
+  await fs.writeFile(historyFile, JSON.stringify(data, null, 2));
 }
 
 export async function saveLastUsed(agentName, scope) {
   await ensureDir();
+  const historyFile = getHistoryFile();
   let data = {};
   try {
-    const existing = await fs.readFile(HISTORY_FILE, 'utf8');
+    const existing = await fs.readFile(historyFile, 'utf8');
     data = JSON.parse(existing);
   } catch {
     // File doesn't exist or is invalid
@@ -76,7 +89,7 @@ export async function saveLastUsed(agentName, scope) {
   if (scope) data.lastScope = scope;
   data.updatedAt = new Date().toISOString();
   
-  await fs.writeFile(HISTORY_FILE, JSON.stringify(data, null, 2));
+  await fs.writeFile(historyFile, JSON.stringify(data, null, 2));
 }
 
 export async function addWorkspace(agentName, workspacePath) {
