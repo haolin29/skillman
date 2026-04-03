@@ -41,8 +41,8 @@ export function parseUrl(url) {
     };
   }
 
-  // Regular git URLs
-  if (url.startsWith('https://') || url.startsWith('git@') || url.startsWith('http://')) {
+  // Regular git URLs (https, http, git@, ssh://)
+  if (url.startsWith('https://') || url.startsWith('git@') || url.startsWith('http://') || url.startsWith('ssh://')) {
     // Remove .git suffix if present for consistency
     const cleanUrl = url.replace(/\.git$/, '');
     return { type: 'git', url: cleanUrl + '.git', subPath: null };
