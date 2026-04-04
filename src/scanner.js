@@ -32,12 +32,22 @@ async function scanSingleDir(dir) {
         const content = await fs.readFile(skillFile, 'utf-8');
         const nameMatch = content.match(/^name:\s*(.+)$/m);
         const descMatch = content.match(/^description:\s*(.+)$/m);
+        // Parse version from metadata block
+        const metadataMatch = content.match(/metadata:[\s\S]*?(?=\n\w|$)/);
+        let version;
+        if (metadataMatch) {
+          const versionInMeta = metadataMatch[0].match(/^\s+version:\s*(.+)$/m);
+          if (versionInMeta) {
+            version = versionInMeta[1].trim();
+          }
+        }
         
         if (nameMatch) {
           skills.push({
             name: nameMatch[1].trim(),
             path: skillPath,
-            description: descMatch ? descMatch[1].trim() : ''
+            description: descMatch ? descMatch[1].trim() : '',
+            version: version
           });
         }
       } catch {
