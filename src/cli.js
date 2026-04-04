@@ -18,6 +18,16 @@ import { InstalledSkillRegistry, formatInstalledSkills, uninstallSkill, updateSk
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VERSION = pkg.version || '1.0.0';
 
+// ASCII Art Logo
+const LOGO = `
+███████╗██╗  ██╗██╗██╗     ██╗     ███████╗
+██╔════╝██║ ██╔╝██║██║     ██║     ██╔════╝
+███████╗█████╔╝ ██║██║     ██║     ███████╗
+╚════██║██╔═██╗ ██║██║     ██║     ╚════██║
+███████║██║  ██╗██║███████╗███████╗███████║
+╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚══════╝
+`;
+
 // ANSI colors
 const c = {
   reset: '\x1b[0m',
@@ -127,7 +137,8 @@ async function installFromUrl(url, dryRun) {
   const requestedVersion = versionMatch ? versionMatch[1] : null;
   const cleanUrl = requestedVersion ? url.slice(0, -versionMatch[0].length) : url;
   
-  console.log(`${c.green}${t('app.name')}${c.reset} - ${t('app.description')}${dryRun ? c.yellow + ' [DRY-RUN]' + c.reset : ''}\n`);
+  console.log(`${c.cyan}${LOGO}${c.reset}`);
+  console.log(`${c.gray}${t('app.description')}${dryRun ? c.yellow + ' [DRY-RUN]' + c.reset : ''}\n`);
 
   const parsed = parseUrl(cleanUrl);
   const isRemote = parsed.type !== 'local';
@@ -491,7 +502,8 @@ async function updateCommand(skillName, dryRun) {
 
 // Interactive install flow
 async function interactiveInstall(dryRun) {
-  console.log(`${c.green}${t('app.name')}${c.reset} - ${t('app.description')}${dryRun ? c.yellow + ' [DRY-RUN]' + c.reset : ''}\n`);
+  console.log(`${c.cyan}${LOGO}${c.reset}`);
+  console.log(`${c.gray}${t('app.description')}${dryRun ? c.yellow + ' [DRY-RUN]' + c.reset : ''}\n`);
 
   // Step 1: Scan skills
   log.step(t('step.scan'));
