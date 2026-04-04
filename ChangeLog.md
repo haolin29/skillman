@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.9] - 2025-04-04
+
+### Added
+
+- **YAML Multiline Description Support**: Parse YAML multiline format for skill descriptions
+  - Supports `|`, `>`, `|-`, `>-` indicators
+  - Automatically extracts actual content from indented lines
+
+- **parseArgs Unit Tests**: Added comprehensive tests for CLI argument parsing
+  - 6 test cases covering install, init, and option parsing
+  - Exported `parseArgs` function for testability
+
+### Fixed
+
+- **Install Command URL Parsing**: Fixed bug where `skillman i <url>` incorrectly scanned local directory
+  - URL was parsed as `subcommand` but code expected `positional`
+  - Now correctly uses `subcommand || positional[0]` for URL
+
+## [1.0.8] - 2025-04-04
+
+### Added
+
+- **Version Comparison Display**: Enhanced version display when skill already exists
+  - Shows `Current: v1.0.0 → Installing: v1.2.0` format
+  - Easy visual comparison of versions before overwrite
+
+## [1.0.7] - 2025-04-04
+
 ### Added
 
 - **Version Management**: Added comprehensive version management capabilities for skills
@@ -25,6 +53,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Both `skillman` (interactive) and `skillman install <path>` now support multi-select
   - Use checkbox interface with space to select, enter to confirm
 
+- **Init Command**: Added `skillman init` command to create skill templates
+  - Quick template generation: `skillman init [skill-name]`
+  - Options: `--version`, `--description`, `--author`, `--dir`
+  - Generates SKILL.md with version metadata for version management
+  - Default name: `my-skill`, default version: `1.0.0`
+
+- **ASCII Logo**: Added modern ASCII art logo on startup
+  - Displays "Skillman" in block characters with cyan color
+  - Shown in both interactive and install-from-URL modes
+
 ### Changed
 
 - **Refactored CLI Code**: Extracted `selectSkills()` helper function
@@ -35,6 +73,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Records: name, version, agent, scope, source path, target path, timestamp
   - Enables update and uninstall operations
 
+- **scanner.js Refactoring**: Extracted `parseSkillFile` function
+  - Eliminated duplicate parsing logic between `scanSingleDir` and `parseSkillFile`
+  - Unified version parsing with quote normalization
+
 ### Fixed
 
 - **Function Not Defined**: Fixed `continueInstall is not defined` error
@@ -43,19 +85,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Unified Selection Interface**: Fixed inconsistency between interactive modes
   - Both entry points now use multi-select checkbox for skill selection
 
-- **ASCII Logo**: Added modern ASCII art logo on startup
-  - Displays "Skillman" in block characters with cyan color
-  - Shown in both interactive and install-from-URL modes
+- **Version Quote Normalization**: Support both quoted and unquoted version in SKILL.md
+  - `version: 1.0.0`, `version: "1.0.0"`, `version: '1.0.0'` all work correctly
+  - Display always shows version without quotes
 
-- **Init Command**: Added `skillman init` command to create skill templates
-  - Quick template generation: `skillman init [skill-name]`
-  - Options: `--version`, `--description`, `--author`, `--dir`
-  - Generates SKILL.md with version metadata for version management
-  - Default name: `my-skill`, default version: `1.0.0`
+### Tests
 
-- **Unit Tests**: Added comprehensive test suite for init command
-  - 7 test cases covering all init scenarios
-  - Total 42 tests passing
+- **Unit Tests**: Added comprehensive test suite
+  - 50 total tests covering all functionality
+  - Tests for init command, parseArgs, scanner, version management
 
 ## [1.0.6] - 2025-04-04
 
