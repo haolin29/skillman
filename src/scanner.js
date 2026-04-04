@@ -89,3 +89,38 @@ export async function scanSkills(dir) {
   
   return [];
 }
+
+/**
+ * Parse a single SKILL.md file to extract metadata
+ * @param {string} skillFile - Path to SKILL.md
+ * @returns {Promise<Object|null>} Parsed skill info or null if invalid
+ */
+export async function parseSkillFile(skillFile) {
+  try {
+    const content = await fs.readFile(skillFile, 'utf-8');
+    const nameMatch = content.match(/^name:\s*(.+)$/m);
+    const descMatch = content.match(/^description:\s*(.+)$/m);
+    
+    // Parse version from metadata block
+    const metadataMatch = content.match(/metadata:[\s\S]*?(?=\n\w|$)/);
+    let version;
+    if (metadataMatch) {
+      const versionInMeta = metadataMatch[0].match(/^\s+version:\s*(.+)$/m);
+      if (versionInMeta) {
+        version = versionInMeta[1].trim();
+      }
+    }
+    
+    if (nameMatch) {
+      return {
+        name: nameMatch[1].trim(),
+        description: descMatch ? descMatch[1].trim() : '',
+        version: version
+      };
+    }
+  } catch {
+    // File doesn't exist or can't be read
+  }
+  
+  return null;
+}

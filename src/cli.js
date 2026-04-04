@@ -7,7 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { select, confirm, input, Separator, checkbox } from '@inquirer/prompts';
 import pkg from '../package.json' with { type: 'json' };
-import { scanSkills } from './scanner.js';
+import { scanSkills, parseSkillFile } from './scanner.js';
 import { installSkill } from './installer.js';
 import { loadAgents } from './config.js';
 import { t } from './i18n.js';
@@ -431,7 +431,11 @@ async function continueInstallMultiple(selectedSkills, dryRun) {
     let shouldInstall = true;
     try {
       await fs.access(targetDir);
-      log.warn(t('msg.skill_exists'));
+      // Get existing skill version
+      const existingSkillFile = path.join(targetDir, 'SKILL.md');
+      const existingSkill = await parseSkillFile(existingSkillFile);
+      const versionStr = existingSkill?.version ? `@${existingSkill.version}` : '';
+      log.warn(`${t('msg.skill_exists')}${versionStr}`);
       const overwrite = await confirm({ message: t('prompt.overwrite') + '?', default: false });
       if (!overwrite) {
         log.info(t('msg.skipped') || 'Skipped');
