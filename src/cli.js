@@ -644,7 +644,7 @@ export async function cli() {
   }
 
   if (options.command === 'install' || options.command === 'i') {
-    const url = options.positional[0] || process.cwd();
+    const url = options.subcommand || options.positional[0] || process.cwd();
     await installFromUrl(url, options.dryRun);
     return;
   }
