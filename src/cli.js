@@ -120,11 +120,16 @@ async function listAgents() {
   }
 }
 
-// Install from URL or local path
+// Install from URL or local path with optional version
 async function installFromUrl(url, dryRun) {
+  // Parse version from URL (e.g., skill@1.2.3 or github.com/owner/repo@1.2.3)
+  const versionMatch = url.match(/@([^@\/]+)$/);
+  const requestedVersion = versionMatch ? versionMatch[1] : null;
+  const cleanUrl = requestedVersion ? url.slice(0, -versionMatch[0].length) : url;
+  
   console.log(`${c.green}${t('app.name')}${c.reset} - ${t('app.description')}${dryRun ? c.yellow + ' [DRY-RUN]' + c.reset : ''}\n`);
 
-  const parsed = parseUrl(url);
+  const parsed = parseUrl(cleanUrl);
   const isRemote = parsed.type !== 'local';
 
   // Step 1: Download/resolve path
@@ -152,6 +157,19 @@ async function installFromUrl(url, dryRun) {
   }
 
   log.success(t('msg.found_skills', { count: skills.length }));
+
+  // Check version if specified
+  if (requestedVersion) {
+    const matchingSkills = skills.filter(s => s.version === requestedVersion);
+    if (matchingSkills.length === 0) {
+      const availableVersions = [...new Set(skills.map(s => s.version).filter(Boolean))];
+      log.error(`Version ${requestedVersion} not found. Available versions: ${availableVersions.join(', ') || 'none'}`);
+      process.exit(1);
+    }
+    skills.length = 0;
+    skills.push(...matchingSkills);
+    log.success(`Found ${skills.length} skill(s) matching version ${requestedVersion}`);
+  }
 
   // Step 3: Select skills (if multiple)
   let selectedSkills;
