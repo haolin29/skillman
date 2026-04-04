@@ -47,6 +47,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Displays "Skillman" in block characters with cyan color
   - Shown in both interactive and install-from-URL modes
 
+- **Init Command**: Added `skillman init` command to create skill templates
+  - Quick template generation: `skillman init [skill-name]`
+  - Options: `--version`, `--description`, `--author`, `--dir`
+  - Generates SKILL.md with version metadata for version management
+  - Default name: `my-skill`, default version: `1.0.0`
+
+- **Unit Tests**: Added comprehensive test suite for init command
+  - 7 test cases covering all init scenarios
+  - Total 42 tests passing
+
 ## [1.0.6] - 2025-04-04
 
 ### Added
