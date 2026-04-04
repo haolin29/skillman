@@ -5,14 +5,34 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { InstalledSkillRegistry } from './version.js';
 
 /**
  * Install skill by copying to target directory
  * @param {string} srcPath - Source skill directory
  * @param {string} targetDir - Target installation directory
+ * @param {Object} metadata - Installation metadata
+ * @param {string} metadata.name - Skill name
+ * @param {string} metadata.version - Skill version
+ * @param {string} metadata.agent - Target agent name
+ * @param {string} metadata.scope - Installation scope (global|workspace)
  */
-export async function installSkill(srcPath, targetDir) {
+export async function installSkill(srcPath, targetDir, metadata = {}) {
   await copyDir(srcPath, targetDir);
+  
+  // Record installation if metadata provided
+  if (metadata.name) {
+    const registry = new InstalledSkillRegistry();
+    await registry.add({
+      name: metadata.name,
+      version: metadata.version,
+      installedAt: new Date().toISOString(),
+      agent: metadata.agent,
+      scope: metadata.scope,
+      sourcePath: srcPath,
+      targetPath: targetDir
+    });
+  }
 }
 
 /**

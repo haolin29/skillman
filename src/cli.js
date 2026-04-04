@@ -13,6 +13,7 @@ import { loadAgents } from './config.js';
 import { t } from './i18n.js';
 import { loadHistory, addWorkspace, saveLastUsed } from './history.js';
 import { downloadSkill, parseUrl, cleanupDownloads } from './downloader.js';
+import { InstalledSkillRegistry, formatInstalledSkills, uninstallSkill, updateSkill } from './version.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VERSION = pkg.version || '1.0.0';
@@ -41,6 +42,7 @@ const log = {
 function parseArgs(args) {
   const result = {
     command: null,
+    subcommand: null,
     dryRun: false,
     help: false,
     version: false,
@@ -57,6 +59,8 @@ function parseArgs(args) {
     } else if (!arg.startsWith('-')) {
       if (!result.command) {
         result.command = arg;
+      } else if (!result.subcommand) {
+        result.subcommand = arg;
       } else {
         result.positional.push(arg);
       }
@@ -74,6 +78,10 @@ ${c.cyan}${t('help.usage')}:${c.reset}
   skillman                    ${t('help.cmd.interactive')}
   skillman install <path>     ${t('help.cmd.install')}
   skillman i <path>           ${t('help.cmd.install')}
+  skillman list               ${t('help.cmd.list')}
+  skillman update <skill>     ${t('help.cmd.update')}
+  skillman u <skill>          ${t('help.cmd.update')}
+  skillman uninstall <skill>  ${t('help.cmd.uninstall')}
   skillman agents             ${t('help.cmd.agents')}
 
 ${c.cyan}${t('help.options')}:${c.reset}
@@ -86,6 +94,9 @@ ${c.cyan}${t('help.examples')}:${c.reset}
   skillman --dry-run           # ${t('help.opt.dry_run')}
   skillman install ./my-skill  # ${t('help.cmd.install')}
   skillman i github.com/owner/repo  # ${t('help.cmd.install')}
+  skillman list                # ${t('help.cmd.list')}
+  skillman update my-skill     # ${t('help.cmd.update')}
+  skillman uninstall my-skill  # ${t('help.cmd.uninstall')}
   skillman agents              # ${t('help.cmd.agents')}
 `);
 }
@@ -148,12 +159,16 @@ async function installFromUrl(url, dryRun) {
     selectedSkills = [skills[0]];
     log.success(`${t('msg.selected')}: ${skills[0].name}`);
   } else {
-    const skillChoices = skills.map(s => ({
-      name: s.description 
-        ? `${s.name} ${c.gray}(${s.description.slice(0, 40)}${s.description.length > 40 ? '...' : ''})${c.reset}`
-        : s.name,
-      value: s
-    }));
+    const skillChoices = skills.map(s => {
+      const versionStr = s.version ? `@${s.version}` : '';
+      const descStr = s.description 
+        ? ` ${c.gray}(${s.description.slice(0, 40)}${s.description.length > 40 ? '...' : ''})${c.reset}`
+        : '';
+      return {
+        name: `${s.name}${versionStr}${descStr}`,
+        value: s
+      };
+    });
 
     selectedSkills = await checkbox({
       message: t('step.select_skills') + ':',
@@ -341,7 +356,12 @@ async function continueInstallMultiple(selectedSkills, dryRun) {
     }
     
     if (shouldInstall) {
-      await installSkill(skill.path, targetDir);
+      await installSkill(skill.path, targetDir, {
+        name: skill.name,
+        version: skill.version,
+        agent: agent.name,
+        scope: scope
+      });
       log.success(`${t('msg.target')}: ${targetDir}`);
       installedCount++;
     }
@@ -356,6 +376,94 @@ async function continueInstallMultiple(selectedSkills, dryRun) {
   console.log(`  ${t('msg.agent')}:    ${agent.displayName}`);
   console.log(`  ${t('msg.scope')}:    ${scope}`);
   console.log();
+}
+
+// List installed skills
+async function listSkills() {
+  const registry = new InstalledSkillRegistry();
+  const skills = await registry.load();
+  
+  console.log(`\n${c.cyan}${t('msg.installed_skills')}:${c.reset}\n`);
+  
+  const lines = formatInstalledSkills(skills, t);
+  for (const line of lines) {
+    console.log(line);
+  }
+}
+
+// Uninstall a skill
+async function uninstallCommand(skillName, dryRun) {
+  if (!skillName) {
+    log.error(t('error.no_skill_name') || 'Please specify a skill name');
+    process.exit(1);
+  }
+  
+  const registry = new InstalledSkillRegistry();
+  const skill = await registry.find(skillName);
+  
+  if (!skill) {
+    log.error(t('error.skill_not_installed'));
+    process.exit(1);
+  }
+  
+  if (dryRun) {
+    log.dry(`${t('msg.uninstalling') || 'Would uninstall'}: ${skillName}`);
+    log.dry(`  ${t('msg.target')}: ${skill.targetPath}`);
+    return;
+  }
+  
+  const confirmed = await confirm({ 
+    message: `${t('prompt.uninstall')} ${skillName}?`, 
+    default: false 
+  });
+  
+  if (!confirmed) {
+    log.info(t('msg.cancelled') || 'Cancelled');
+    return;
+  }
+  
+  const success = await uninstallSkill(skillName, registry);
+  
+  if (success) {
+    log.success(`${t('msg.uninstalled')}: ${skillName}`);
+  } else {
+    log.error(t('error.unknown'));
+    process.exit(1);
+  }
+}
+
+// Update a skill
+async function updateCommand(skillName, dryRun) {
+  if (!skillName) {
+    log.error(t('error.no_skill_name') || 'Please specify a skill name');
+    process.exit(1);
+  }
+  
+  const registry = new InstalledSkillRegistry();
+  const skill = await registry.find(skillName);
+  
+  if (!skill) {
+    log.error(t('error.skill_not_installed'));
+    process.exit(1);
+  }
+  
+  if (dryRun) {
+    log.dry(`${t('msg.updating') || 'Would update'}: ${skillName}`);
+    log.dry(`  ${t('msg.source')}: ${skill.sourcePath}`);
+    log.dry(`  ${t('msg.target')}: ${skill.targetPath}`);
+    return;
+  }
+  
+  log.step(`${t('msg.updating') || 'Updating'}: ${skillName}`);
+  
+  const result = await updateSkill(skillName, registry);
+  
+  if (result.success) {
+    log.success(`${t('msg.updated')}: ${skillName}`);
+  } else {
+    log.error(result.message);
+    process.exit(1);
+  }
 }
 
 // Interactive install flow
@@ -416,6 +524,21 @@ export async function cli() {
   if (options.command === 'install' || options.command === 'i') {
     const url = options.positional[0] || process.cwd();
     await installFromUrl(url, options.dryRun);
+    return;
+  }
+
+  if (options.command === 'list') {
+    await listSkills();
+    return;
+  }
+
+  if (options.command === 'uninstall') {
+    await uninstallCommand(options.subcommand, options.dryRun);
+    return;
+  }
+
+  if (options.command === 'update' || options.command === 'u') {
+    await updateCommand(options.subcommand, options.dryRun);
     return;
   }
 

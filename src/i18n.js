@@ -64,12 +64,21 @@ const translations = {
     'msg.installing': '正在安装',
     'msg.skipped': '已跳过',
     'msg.installed': '已安装',
+    'msg.no_installed_skills': '没有已安装的技能',
+    'msg.installed_skills': '已安装的技能',
+    'msg.skill_not_found': '未找到技能',
+    'msg.uninstalled': '已卸载',
+    'msg.updated': '已更新',
+    'msg.updating': '正在更新',
+    'msg.uninstalling': '正在卸载',
+    'msg.cancelled': '已取消',
     
     // Prompts
     'prompt.workspace_path': '输入 Workspace 路径',
     'prompt.overwrite': '是否覆盖',
     'prompt.select_workspace': '选择 Workspace 路径',
     'prompt.new_path': '输入新路径...',
+    'prompt.uninstall': '确认卸载',
     
     // Options
     'option.global': '全局',
@@ -80,6 +89,8 @@ const translations = {
     'error.empty_path': '路径不能为空',
     'error.not_implemented': '该命令尚未实现，请使用交互模式',
     'error.no_selection': '请至少选择一个 skill',
+    'error.skill_not_installed': '技能未安装',
+    'error.no_skill_name': '请指定技能名称',
     
     // Help
     'help.usage': '用法',
@@ -87,6 +98,9 @@ const translations = {
     'help.examples': '示例',
     'help.cmd.interactive': '交互式安装 (扫描当前目录)',
     'help.cmd.install': '从指定路径安装 skill',
+    'help.cmd.list': '列出已安装的技能',
+    'help.cmd.update': '更新技能',
+    'help.cmd.uninstall': '卸载技能',
     'help.cmd.agents': '列出可用的 agents',
     'help.opt.dry_run': '预览安装而不执行更改',
     'help.opt.version': '显示版本号',
@@ -132,12 +146,21 @@ const translations = {
     'msg.installing': 'Installing',
     'msg.skipped': 'Skipped',
     'msg.installed': 'Installed',
+    'msg.no_installed_skills': 'No skills installed',
+    'msg.installed_skills': 'Installed Skills',
+    'msg.skill_not_found': 'Skill not found',
+    'msg.uninstalled': 'Uninstalled',
+    'msg.updated': 'Updated',
+    'msg.updating': 'Updating',
+    'msg.uninstalling': 'Uninstalling',
+    'msg.cancelled': 'Cancelled',
     
     // Prompts
     'prompt.workspace_path': 'Enter workspace path',
     'prompt.overwrite': 'Overwrite existing',
     'prompt.select_workspace': 'Select workspace path',
     'prompt.new_path': 'Enter new path...',
+    'prompt.uninstall': 'Confirm uninstall',
     
     // Options
     'option.global': 'Global',
@@ -148,6 +171,8 @@ const translations = {
     'error.empty_path': 'Path cannot be empty',
     'error.not_implemented': 'Command not implemented, use interactive mode',
     'error.no_selection': 'Please select at least one skill',
+    'error.skill_not_installed': 'Skill is not installed',
+    'error.no_skill_name': 'Please specify a skill name',
     
     // Help
     'help.usage': 'Usage',
@@ -155,6 +180,9 @@ const translations = {
     'help.examples': 'Examples',
     'help.cmd.interactive': 'Interactive install (scan current directory)',
     'help.cmd.install': 'Install skill from path',
+    'help.cmd.list': 'List installed skills',
+    'help.cmd.update': 'Update a skill',
+    'help.cmd.uninstall': 'Uninstall a skill',
     'help.cmd.agents': 'List available agents',
     'help.opt.dry_run': 'Preview installation without making changes',
     'help.opt.version': 'Show version number',
