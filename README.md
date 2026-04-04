@@ -83,35 +83,6 @@ skillman --version
 - **Dry-Run Mode**: Preview installations before applying changes
 - **Smart Path Resolution**: Automatically resolves relative paths to absolute paths
 
-## Skill Template
-
-Create a new skill with the `init` command:
-
-```bash
-skillman init my-awesome-skill
-```
-
-This generates a `SKILL.md` file with version metadata:
-
-```markdown
----
-name: my-awesome-skill
-description: 
-metadata:
-  version: 1.0.0
----
-
-# my-awesome-skill
-
-## Purpose
-
-## Responsibilities
-
-## Decision Rules
-
-## Output Contract
-```
-
 ## Configuration
 
 Agent configurations are stored in `src/agents.yaml`. Each agent has:
@@ -135,7 +106,7 @@ git clone <repo-url>
 cd skillman
 
 # Install dependencies
-pnpm install
+npm install
 
 # Run locally
 node bin/skillman.mjs
