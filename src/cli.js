@@ -49,7 +49,7 @@ const log = {
 };
 
 // Parse CLI arguments
-function parseArgs(args) {
+export function parseArgs(args) {
   const result = {
     command: null,
     subcommand: null,
