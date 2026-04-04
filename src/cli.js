@@ -434,8 +434,10 @@ async function continueInstallMultiple(selectedSkills, dryRun) {
       // Get existing skill version
       const existingSkillFile = path.join(targetDir, 'SKILL.md');
       const existingSkill = await parseSkillFile(existingSkillFile);
-      const versionStr = existingSkill?.version ? `@${existingSkill.version}` : '';
-      log.warn(`${t('msg.skill_exists')}${versionStr}`);
+      const currentVer = existingSkill?.version || '?';
+      const newVer = skill.version || '?';
+      log.warn(`${skill.name} ${t('msg.already_exists') || 'already exists'}`);
+      console.log(`  ${c.gray}Current:${c.reset} v${currentVer}  ${c.gray}→${c.reset}  ${c.gray}Installing:${c.reset} v${newVer}`);
       const overwrite = await confirm({ message: t('prompt.overwrite') + '?', default: false });
       if (!overwrite) {
         log.info(t('msg.skipped') || 'Skipped');
