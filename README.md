@@ -47,8 +47,21 @@ skillman install git@github.com:org/repo.git
 ### Commands
 
 ```bash
+# Initialize a new skill template
+skillman init [skill-name]
+skillman init my-skill -v 2.0.0 -d "Description" -a "Author"
+
 # List all available agents
 skillman agents
+
+# List installed skills
+skillman list
+
+# Update a skill
+skillman update my-skill
+
+# Uninstall a skill
+skillman uninstall my-skill
 
 # Preview installation without making changes
 skillman --dry-run
@@ -63,10 +76,41 @@ skillman --version
 ## Features
 
 - **Multi-Agent Support**: Works with Claude Code, OpenClaw, Qoder, Codex, Cursor, and more
+- **Skill Template Generator**: Quickly create new skills with `skillman init`
+- **Version Management**: Track and manage skill versions with `list`, `update`, and `uninstall` commands
 - **Workspace History**: Remembers previously used workspace paths for quick selection
 - **Bilingual Support**: Automatically switches between English and Chinese based on system language
 - **Dry-Run Mode**: Preview installations before applying changes
 - **Smart Path Resolution**: Automatically resolves relative paths to absolute paths
+
+## Skill Template
+
+Create a new skill with the `init` command:
+
+```bash
+skillman init my-awesome-skill
+```
+
+This generates a `SKILL.md` file with version metadata:
+
+```markdown
+---
+name: my-awesome-skill
+description: 
+metadata:
+  version: 1.0.0
+---
+
+# my-awesome-skill
+
+## Purpose
+
+## Responsibilities
+
+## Decision Rules
+
+## Output Contract
+```
 
 ## Configuration
 
