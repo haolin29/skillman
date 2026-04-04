@@ -32,13 +32,14 @@ async function scanSingleDir(dir) {
         const content = await fs.readFile(skillFile, 'utf-8');
         const nameMatch = content.match(/^name:\s*(.+)$/m);
         const descMatch = content.match(/^description:\s*(.+)$/m);
-        // Parse version from metadata block
+        // Parse version from metadata block (supports quoted and unquoted)
         const metadataMatch = content.match(/metadata:[\s\S]*?(?=\n\w|$)/);
         let version;
         if (metadataMatch) {
           const versionInMeta = metadataMatch[0].match(/^\s+version:\s*(.+)$/m);
           if (versionInMeta) {
-            version = versionInMeta[1].trim();
+            // Remove quotes if present (both single and double)
+            version = versionInMeta[1].trim().replace(/^["']|["']$/g, '');
           }
         }
         
@@ -101,13 +102,14 @@ export async function parseSkillFile(skillFile) {
     const nameMatch = content.match(/^name:\s*(.+)$/m);
     const descMatch = content.match(/^description:\s*(.+)$/m);
     
-    // Parse version from metadata block
+    // Parse version from metadata block (supports quoted and unquoted)
     const metadataMatch = content.match(/metadata:[\s\S]*?(?=\n\w|$)/);
     let version;
     if (metadataMatch) {
       const versionInMeta = metadataMatch[0].match(/^\s+version:\s*(.+)$/m);
       if (versionInMeta) {
-        version = versionInMeta[1].trim();
+        // Remove quotes if present (both single and double)
+        version = versionInMeta[1].trim().replace(/^["']|["']$/g, '');
       }
     }
     
