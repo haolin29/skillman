@@ -43,6 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Unified Selection Interface**: Fixed inconsistency between interactive modes
   - Both entry points now use multi-select checkbox for skill selection
 
+- **ASCII Logo**: Added modern ASCII art logo on startup
+  - Displays "Skillman" in block characters with cyan color
+  - Shown in both interactive and install-from-URL modes
+
 ## [1.0.6] - 2025-04-04
 
 ### Added
