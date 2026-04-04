@@ -11,6 +11,42 @@ import path from 'path';
 const SKILL_CONTAINERS = ['skills', '.agents/skills', '.claude/skills'];
 
 /**
+ * Parse a single SKILL.md file to extract metadata
+ * @param {string} skillFile - Path to SKILL.md
+ * @returns {Promise<Object|null>} Parsed skill info or null if invalid
+ */
+export async function parseSkillFile(skillFile) {
+  try {
+    const content = await fs.readFile(skillFile, 'utf-8');
+    const nameMatch = content.match(/^name:\s*(.+)$/m);
+    const descMatch = content.match(/^description:\s*(.+)$/m);
+    
+    // Parse version from metadata block (supports quoted and unquoted)
+    const metadataMatch = content.match(/metadata:[\s\S]*?(?=\n\w|$)/);
+    let version;
+    if (metadataMatch) {
+      const versionInMeta = metadataMatch[0].match(/^\s+version:\s*(.+)$/m);
+      if (versionInMeta) {
+        // Remove quotes if present (both single and double)
+        version = versionInMeta[1].trim().replace(/^["']|["']$/g, '');
+      }
+    }
+    
+    if (nameMatch) {
+      return {
+        name: nameMatch[1].trim(),
+        description: descMatch ? descMatch[1].trim() : '',
+        version: version
+      };
+    }
+  } catch {
+    // File doesn't exist or can't be read
+  }
+  
+  return null;
+}
+
+/**
  * Scan a single directory for skills
  * @param {string} dir - Directory to scan
  * @returns {Promise<Array>} Found skills
@@ -28,31 +64,12 @@ async function scanSingleDir(dir) {
       const skillPath = path.join(dir, entry.name);
       const skillFile = path.join(skillPath, 'SKILL.md');
       
-      try {
-        const content = await fs.readFile(skillFile, 'utf-8');
-        const nameMatch = content.match(/^name:\s*(.+)$/m);
-        const descMatch = content.match(/^description:\s*(.+)$/m);
-        // Parse version from metadata block (supports quoted and unquoted)
-        const metadataMatch = content.match(/metadata:[\s\S]*?(?=\n\w|$)/);
-        let version;
-        if (metadataMatch) {
-          const versionInMeta = metadataMatch[0].match(/^\s+version:\s*(.+)$/m);
-          if (versionInMeta) {
-            // Remove quotes if present (both single and double)
-            version = versionInMeta[1].trim().replace(/^["']|["']$/g, '');
-          }
-        }
-        
-        if (nameMatch) {
-          skills.push({
-            name: nameMatch[1].trim(),
-            path: skillPath,
-            description: descMatch ? descMatch[1].trim() : '',
-            version: version
-          });
-        }
-      } catch {
-        // No SKILL.md or parse error, skip
+      const skillInfo = await parseSkillFile(skillFile);
+      if (skillInfo) {
+        skills.push({
+          ...skillInfo,
+          path: skillPath
+        });
       }
     }
   } catch {
@@ -89,40 +106,4 @@ export async function scanSkills(dir) {
   }
   
   return [];
-}
-
-/**
- * Parse a single SKILL.md file to extract metadata
- * @param {string} skillFile - Path to SKILL.md
- * @returns {Promise<Object|null>} Parsed skill info or null if invalid
- */
-export async function parseSkillFile(skillFile) {
-  try {
-    const content = await fs.readFile(skillFile, 'utf-8');
-    const nameMatch = content.match(/^name:\s*(.+)$/m);
-    const descMatch = content.match(/^description:\s*(.+)$/m);
-    
-    // Parse version from metadata block (supports quoted and unquoted)
-    const metadataMatch = content.match(/metadata:[\s\S]*?(?=\n\w|$)/);
-    let version;
-    if (metadataMatch) {
-      const versionInMeta = metadataMatch[0].match(/^\s+version:\s*(.+)$/m);
-      if (versionInMeta) {
-        // Remove quotes if present (both single and double)
-        version = versionInMeta[1].trim().replace(/^["']|["']$/g, '');
-      }
-    }
-    
-    if (nameMatch) {
-      return {
-        name: nameMatch[1].trim(),
-        description: descMatch ? descMatch[1].trim() : '',
-        version: version
-      };
-    }
-  } catch {
-    // File doesn't exist or can't be read
-  }
-  
-  return null;
 }
