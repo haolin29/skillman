@@ -500,12 +500,16 @@ async function interactiveInstall(dryRun) {
   log.success(t('msg.found_skills', { count: skills.length }));
 
   // Step 2: Select skill
-  const skillChoices = skills.map(s => ({
-    name: s.description 
-      ? `${s.name} ${c.gray}(${s.description.slice(0, 40)}${s.description.length > 40 ? '...' : ''})${c.reset}`
-      : s.name,
-    value: s
-  }));
+  const skillChoices = skills.map(s => {
+    const versionStr = s.version ? `@${s.version}` : '';
+    const descStr = s.description 
+      ? ` ${c.gray}(${s.description.slice(0, 40)}${s.description.length > 40 ? '...' : ''})${c.reset}`
+      : '';
+    return {
+      name: `${s.name}${versionStr}${descStr}`,
+      value: s
+    };
+  });
 
   const selectedSkill = await select({
     message: t('step.select_skill') + ':',
@@ -516,7 +520,7 @@ async function interactiveInstall(dryRun) {
   log.success(`${t('msg.selected')}: ${selectedSkill.name}`);
 
   // Continue with agent selection and installation
-  await continueInstall(selectedSkill, dryRun);
+  await continueInstallMultiple([selectedSkill], dryRun);
 }
 
 // Main CLI function
