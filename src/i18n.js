@@ -72,6 +72,9 @@ const translations = {
     'msg.updating': '正在更新',
     'msg.uninstalling': '正在卸载',
     'msg.cancelled': '已取消',
+    'msg.init_skill': '初始化 Skill 模板',
+    'msg.created': '已创建',
+    'msg.init_hint': '编辑 SKILL.md 来自定义你的 skill',
     
     // Prompts
     'prompt.workspace_path': '输入 Workspace 路径',
@@ -97,6 +100,7 @@ const translations = {
     'help.options': '选项',
     'help.examples': '示例',
     'help.cmd.interactive': '交互式安装 (扫描当前目录)',
+    'help.cmd.init': '初始化新的 skill 模板',
     'help.cmd.install': '从指定路径安装 skill',
     'help.cmd.list': '列出已安装的技能',
     'help.cmd.update': '更新技能',
@@ -154,6 +158,9 @@ const translations = {
     'msg.updating': 'Updating',
     'msg.uninstalling': 'Uninstalling',
     'msg.cancelled': 'Cancelled',
+    'msg.init_skill': 'Initializing skill template',
+    'msg.created': 'Created',
+    'msg.init_hint': 'Edit SKILL.md to customize your skill',
     
     // Prompts
     'prompt.workspace_path': 'Enter workspace path',
@@ -179,6 +186,7 @@ const translations = {
     'help.options': 'Options',
     'help.examples': 'Examples',
     'help.cmd.interactive': 'Interactive install (scan current directory)',
+    'help.cmd.init': 'Initialize new skill template',
     'help.cmd.install': 'Install skill from path',
     'help.cmd.list': 'List installed skills',
     'help.cmd.update': 'Update a skill',

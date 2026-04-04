@@ -56,16 +56,42 @@ function parseArgs(args) {
     dryRun: false,
     help: false,
     version: false,
+    initVersion: '1.0.0',
+    initDescription: '',
+    initAuthor: '',
+    initDir: true,
     positional: []
   };
 
-  for (const arg of args) {
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
     if (arg === '--dry-run' || arg === '-n') {
       result.dryRun = true;
     } else if (arg === '--help' || arg === '-h') {
       result.help = true;
     } else if (arg === '--version' || arg === '-v') {
-      result.version = true;
+      // Check if next arg is a value (for init command)
+      if (args[i + 1] && !args[i + 1].startsWith('-')) {
+        result.initVersion = args[i + 1];
+        i++;
+      } else {
+        result.version = true;
+      }
+    } else if (arg === '--description' || arg === '-d') {
+      if (args[i + 1] && !args[i + 1].startsWith('-')) {
+        result.initDescription = args[i + 1];
+        i++;
+      }
+    } else if (arg === '--author' || arg === '-a') {
+      if (args[i + 1] && !args[i + 1].startsWith('-')) {
+        result.initAuthor = args[i + 1];
+        i++;
+      }
+    } else if (arg === '--dir') {
+      if (args[i + 1] && !args[i + 1].startsWith('-')) {
+        result.initDir = args[i + 1].toLowerCase() !== 'false';
+        i++;
+      }
     } else if (!arg.startsWith('-')) {
       if (!result.command) {
         result.command = arg;
@@ -86,6 +112,7 @@ function showHelp() {
 
 ${c.cyan}${t('help.usage')}:${c.reset}
   skillman                    ${t('help.cmd.interactive')}
+  skillman init [name]        ${t('help.cmd.init')}
   skillman install <path>     ${t('help.cmd.install')}
   skillman i <path>           ${t('help.cmd.install')}
   skillman list               ${t('help.cmd.list')}
@@ -101,6 +128,9 @@ ${c.cyan}${t('help.options')}:${c.reset}
 
 ${c.cyan}${t('help.examples')}:${c.reset}
   skillman                     # ${t('help.cmd.interactive')}
+  skillman init                # Create skill with default name
+  skillman init my-skill       # Create skill with custom name
+  skillman init -v 2.0.0       # Create skill with specific version
   skillman --dry-run           # ${t('help.opt.dry_run')}
   skillman install ./my-skill  # ${t('help.cmd.install')}
   skillman i github.com/owner/repo  # ${t('help.cmd.install')}
@@ -128,6 +158,64 @@ async function listAgents() {
     console.log(`    ${t('option.workspace')}: ${c.gray}${agent.skillsDir}${c.reset}`);
     console.log();
   }
+}
+
+// Initialize a new skill template
+async function initSkill(skillName, options) {
+  const name = skillName || 'my-skill';
+  const version = options.initVersion || '1.0.0';
+  const description = options.initDescription || '';
+  const author = options.initAuthor || '';
+  const createDir = options.initDir !== false;
+  
+  console.log(`${c.cyan}${LOGO}${c.reset}`);
+  log.step(t('msg.init_skill') || 'Initializing skill template');
+  
+  const targetDir = createDir ? path.join(process.cwd(), name) : process.cwd();
+  const skillFile = path.join(targetDir, 'SKILL.md');
+  
+  // Check if already exists
+  try {
+    await fs.access(skillFile);
+    log.error(t('error.skill_exists') || 'SKILL.md already exists');
+    process.exit(1);
+  } catch {
+    // File doesn't exist, proceed
+  }
+  
+  // Create directory if needed
+  if (createDir) {
+    await fs.mkdir(targetDir, { recursive: true });
+  }
+  
+  // Build metadata section
+  let metadataSection = `metadata:\n  version: ${version}`;
+  if (author) {
+    metadataSection += `\n  author: ${author}`;
+  }
+  
+  // Generate SKILL.md content
+  const skillContent = `---
+name: ${name}
+description: ${description}
+${metadataSection}
+---
+
+# ${name}
+
+## Purpose
+
+## Responsibilities
+
+## Decision Rules
+
+## Output Contract
+`;
+  
+  await fs.writeFile(skillFile, skillContent);
+  
+  log.success(`${t('msg.created') || 'Created'}: ${skillFile}`);
+  console.log(`\n${c.gray}${t('msg.init_hint') || 'Edit SKILL.md to customize your skill'}${c.reset}`);
 }
 
 // Install from URL or local path with optional version
@@ -540,6 +628,12 @@ export async function cli() {
 
   if (options.command === 'agents') {
     await listAgents();
+    return;
+  }
+
+  if (options.command === 'init') {
+    const skillName = options.subcommand || options.positional[0];
+    await initSkill(skillName, options);
     return;
   }
 
