@@ -161,7 +161,7 @@ async function listAgents() {
 }
 
 // Initialize a new skill template
-async function initSkill(skillName, options) {
+export async function initSkill(skillName, options) {
   const name = skillName || 'my-skill';
   const version = options.initVersion || '1.0.0';
   const description = options.initDescription || '';
