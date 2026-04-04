@@ -499,28 +499,41 @@ async function interactiveInstall(dryRun) {
 
   log.success(t('msg.found_skills', { count: skills.length }));
 
-  // Step 2: Select skill
-  const skillChoices = skills.map(s => {
-    const versionStr = s.version ? `@${s.version}` : '';
-    const descStr = s.description 
-      ? ` ${c.gray}(${s.description.slice(0, 40)}${s.description.length > 40 ? '...' : ''})${c.reset}`
-      : '';
-    return {
-      name: `${s.name}${versionStr}${descStr}`,
-      value: s
-    };
-  });
+  // Step 2: Select skills
+  let selectedSkills;
+  if (skills.length === 1) {
+    selectedSkills = [skills[0]];
+    log.success(`${t('msg.selected')}: ${skills[0].name}`);
+  } else {
+    const skillChoices = skills.map(s => {
+      const versionStr = s.version ? `@${s.version}` : '';
+      const descStr = s.description 
+        ? ` ${c.gray}(${s.description.slice(0, 40)}${s.description.length > 40 ? '...' : ''})${c.reset}`
+        : '';
+      return {
+        name: `${s.name}${versionStr}${descStr}`,
+        value: s
+      };
+    });
 
-  const selectedSkill = await select({
-    message: t('step.select_skill') + ':',
-    choices: skillChoices,
-    pageSize: 10
-  });
+    selectedSkills = await checkbox({
+      message: t('step.select_skills') + ':',
+      choices: skillChoices,
+      pageSize: 10,
+      loop: false,
+      validate: (selected) => {
+        if (selected.length === 0) {
+          return t('error.no_selection') || 'Please select at least one skill';
+        }
+        return true;
+      }
+    });
 
-  log.success(`${t('msg.selected')}: ${selectedSkill.name}`);
+    log.success(`${t('msg.selected_count', { count: selectedSkills.length })}`);
+  }
 
   // Continue with agent selection and installation
-  await continueInstallMultiple([selectedSkill], dryRun);
+  await continueInstallMultiple(selectedSkills, dryRun);
 }
 
 // Main CLI function
