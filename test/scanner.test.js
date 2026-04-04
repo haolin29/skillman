@@ -103,4 +103,40 @@ describe('scanSkills', () => {
     assert.strictEqual(skills.length, 1);
     assert.strictEqual(skills[0].description, 'This is a test description.');
   });
+
+  it('should handle YAML multiline description with >-', async () => {
+    await fs.mkdir(path.join(tempDir, 'multiline-skill'));
+    await fs.writeFile(
+      path.join(tempDir, 'multiline-skill', 'SKILL.md'),
+      `name: multiline-skill
+description: >-
+  This is the actual description
+  that spans multiple lines.
+metadata:
+  version: 1.0.0
+`
+    );
+
+    const skills = await scanSkills(tempDir);
+    
+    assert.strictEqual(skills.length, 1);
+    assert.strictEqual(skills[0].description, 'This is the actual description');
+  });
+
+  it('should handle YAML multiline description with |', async () => {
+    await fs.mkdir(path.join(tempDir, 'pipe-skill'));
+    await fs.writeFile(
+      path.join(tempDir, 'pipe-skill', 'SKILL.md'),
+      `name: pipe-skill
+description: |
+  First line of description
+  Second line here
+`
+    );
+
+    const skills = await scanSkills(tempDir);
+    
+    assert.strictEqual(skills.length, 1);
+    assert.strictEqual(skills[0].description, 'First line of description');
+  });
 });
