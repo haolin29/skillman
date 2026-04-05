@@ -1,6 +1,8 @@
 # Skillman
 
-A CLI tool to install AI agent skills across multiple platforms.
+A CLI tool to install AI agent skills with intelligent version management.
+
+**Smart Versioning**: Automatically tracks skill versions — whether SemVer in metadata or MD5 hash of content — ensuring you always know what you have installed and when updates are available.
 
 ## Installation
 
