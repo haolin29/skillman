@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2025-04-04
+
+### Added
+
+- **Git Version Selection**: Install skills from specific git tags or commits
+  - Use `@ref` syntax: `skillman install repo@v1.0.0` or `skillman install repo@abc1234`
+  - Supports tags, commits, and branch names
+  - Works with all URL formats (GitHub shorthand, full URL, SSH)
+
+- **Hash-Based Versioning**: Automatic version for skills without explicit version
+  - Computes MD5 hash of SKILL.md content when `metadata.version` is missing
+  - Stores full 32-character hash in `installed.json`
+  - Displays truncated 8-character hash in UI (e.g., `skill-name@a1b2c3d4`)
+  - Adds `isHash` flag to distinguish hash versions from SemVer
+
+- **Enhanced URL Parsing**: `downloader.js` now extracts git ref from URLs
+  - Parses `@tag`, `@commit`, `@branch` suffixes
+  - Returns `{ type, url, subPath, ref }` structure
+
+### Changed
+
+- **Simplified Install Command**: Removed `version` subcommand
+  - Git version control via `@ref` syntax is sufficient
+  - CLI is cleaner without redundant version filtering options
+
+### Tests
+
+- **URL Parsing Tests**: Added 6 new tests for git ref support
+  - GitHub shorthand with tag/commit
+  - Full URL with tag
+  - SSH URL with tag
+  - Subpath with tag
+
+- **Hash Utilities Tests**: Added `test/hash.test.js` with 6 tests
+  - MD5 computation
+  - Version formatting (truncation for display)
+  - Edge cases (null, empty, short hashes)
+
+- **Scanner Tests**: Updated to verify `isHash` flag behavior
+
 ## [1.0.9] - 2025-04-04
 
 ### Added

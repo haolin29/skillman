@@ -26,6 +26,7 @@ metadata:
   assert.strictEqual(skills.length, 1);
   assert.strictEqual(skills[0].name, 'test-skill');
   assert.strictEqual(skills[0].version, '1.2.3');
+  assert.strictEqual(skills[0].isHash, false); // Real version, not hash
   
   // Cleanup
   await fs.rm(tmpDir, { recursive: true });
@@ -51,7 +52,9 @@ metadata:
   
   assert.strictEqual(skills.length, 1);
   assert.strictEqual(skills[0].name, 'test-skill');
-  assert.strictEqual(skills[0].version, undefined);
+  // When no version is specified, should return MD5 hash and isHash=true
+  assert.strictEqual(skills[0].isHash, true);
+  assert.strictEqual(skills[0].version.length, 32); // MD5 hash is 32 chars
   
   // Cleanup
   await fs.rm(tmpDir, { recursive: true });

@@ -14,6 +14,7 @@ import { InstalledSkillRegistry } from './version.js';
  * @param {Object} metadata - Installation metadata
  * @param {string} metadata.name - Skill name
  * @param {string} metadata.version - Skill version
+ * @param {boolean} metadata.isHash - Whether version is a hash
  * @param {string} metadata.agent - Target agent name
  * @param {string} metadata.scope - Installation scope (global|workspace)
  */
@@ -26,6 +27,7 @@ export async function installSkill(srcPath, targetDir, metadata = {}) {
     await registry.add({
       name: metadata.name,
       version: metadata.version,
+      isHash: metadata.isHash || false,
       installedAt: new Date().toISOString(),
       agent: metadata.agent,
       scope: metadata.scope,

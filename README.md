@@ -42,6 +42,10 @@ skillman install https://github.com/vercel-labs/agent-skills/tree/main/skills/we
 # GitLab or other git URLs
 skillman install https://gitlab.com/org/repo
 skillman install git@github.com:org/repo.git
+
+# Install specific git tag or commit
+skillman install github.com/user/repo@v1.0.0
+skillman install github.com/user/repo@abc1234
 ```
 
 ### Commands
@@ -78,6 +82,8 @@ skillman --version
 - **Multi-Agent Support**: Works with Claude Code, OpenClaw, Qoder, Codex, Cursor, and more
 - **Skill Template Generator**: Quickly create new skills with `skillman init`
 - **Version Management**: Track and manage skill versions with `list`, `update`, and `uninstall` commands
+- **Git Version Selection**: Install from specific git tags or commits using `@ref` syntax
+- **Hash-Based Versioning**: Automatically computes MD5 hash for skills without explicit version
 - **Workspace History**: Remembers previously used workspace paths for quick selection
 - **Bilingual Support**: Automatically switches between English and Chinese based on system language
 - **Dry-Run Mode**: Preview installations before applying changes
@@ -97,6 +103,31 @@ When installing to a workspace scope, Skillman remembers your paths in:
 ```
 
 History is organized by agent, so each agent has its own list of recently used workspaces.
+
+## Installed Skills Tracking
+
+Skillman tracks installed skills in `installed.json` files:
+
+```
+~/.config/skillman/installed.json          # Global installed skills
+<workspace>/.qoder/installed.json          # Workspace installed skills
+```
+
+Each entry contains:
+- `name`: Skill name
+- `version`: Installed version (SemVer or MD5 hash)
+- `isHash`: Whether version is a hash (true) or SemVer (false)
+- `path`: Installation path
+- `installedAt`: Installation timestamp
+- `updatedAt`: Last update timestamp
+
+This enables:
+- **List Command**: `skillman list` shows all installed skills with versions
+- **Update Detection**: `skillman update` checks if newer versions are available
+- **Conflict Prevention**: Prevents overwriting different versions without warning
+- **Clean Uninstall**: `skillman uninstall` removes both files and registry entries
+
+**Note on Hash Versions**: When a skill's SKILL.md doesn't include a `version` field in metadata, Skillman automatically computes an MD5 hash of the file content as the version identifier. This ensures every skill has a unique version for tracking and comparison purposes.
 
 ## Development
 

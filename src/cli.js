@@ -14,6 +14,7 @@ import { t } from './i18n.js';
 import { loadHistory, addWorkspace, saveLastUsed } from './history.js';
 import { downloadSkill, parseUrl, cleanupDownloads } from './downloader.js';
 import { InstalledSkillRegistry, formatInstalledSkills, uninstallSkill, updateSkill } from './version.js';
+import { formatVersion } from './hash.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VERSION = pkg.version || '1.0.0';
@@ -218,17 +219,12 @@ ${metadataSection}
   console.log(`\n${c.gray}${t('msg.init_hint') || 'Edit SKILL.md to customize your skill'}${c.reset}`);
 }
 
-// Install from URL or local path with optional version
+// Install from URL or local path
 async function installFromUrl(url, dryRun) {
-  // Parse version from URL (e.g., skill@1.2.3 or github.com/owner/repo@1.2.3)
-  const versionMatch = url.match(/@([^@\/]+)$/);
-  const requestedVersion = versionMatch ? versionMatch[1] : null;
-  const cleanUrl = requestedVersion ? url.slice(0, -versionMatch[0].length) : url;
-  
   console.log(`${c.cyan}${LOGO}${c.reset}`);
   console.log(`${c.gray}${t('app.description')}${dryRun ? c.yellow + ' [DRY-RUN]' + c.reset : ''}\n`);
 
-  const parsed = parseUrl(cleanUrl);
+  const parsed = parseUrl(url);
   const isRemote = parsed.type !== 'local';
 
   // Step 1: Download/resolve path
@@ -256,19 +252,6 @@ async function installFromUrl(url, dryRun) {
   }
 
   log.success(t('msg.found_skills', { count: skills.length }));
-
-  // Check version if specified
-  if (requestedVersion) {
-    const matchingSkills = skills.filter(s => s.version === requestedVersion);
-    if (matchingSkills.length === 0) {
-      const availableVersions = [...new Set(skills.map(s => s.version).filter(Boolean))];
-      log.error(`Version ${requestedVersion} not found. Available versions: ${availableVersions.join(', ') || 'none'}`);
-      process.exit(1);
-    }
-    skills.length = 0;
-    skills.push(...matchingSkills);
-    log.success(`Found ${skills.length} skill(s) matching version ${requestedVersion}`);
-  }
 
   // Step 3: Select skills
   const selectedSkills = await selectSkills(skills);
@@ -434,10 +417,10 @@ async function continueInstallMultiple(selectedSkills, dryRun) {
       // Get existing skill version
       const existingSkillFile = path.join(targetDir, 'SKILL.md');
       const existingSkill = await parseSkillFile(existingSkillFile);
-      const currentVer = existingSkill?.version || '?';
-      const newVer = skill.version || '?';
+      const currentVer = formatVersion(existingSkill?.version, existingSkill?.isHash) || '?';
+      const newVer = formatVersion(skill.version, skill.isHash) || '?';
       log.warn(`${skill.name} ${t('msg.already_exists') || 'already exists'}`);
-      console.log(`  ${c.gray}Current:${c.reset} v${currentVer}  ${c.gray}→${c.reset}  ${c.gray}Installing:${c.reset} v${newVer}`);
+      console.log(`  ${c.gray}Current:${c.reset} ${currentVer}  ${c.gray}→${c.reset}  ${c.gray}Installing:${c.reset} ${newVer}`);
       const overwrite = await confirm({ message: t('prompt.overwrite') + '?', default: false });
       if (!overwrite) {
         log.info(t('msg.skipped') || 'Skipped');
@@ -452,6 +435,7 @@ async function continueInstallMultiple(selectedSkills, dryRun) {
       await installSkill(skill.path, targetDir, {
         name: skill.name,
         version: skill.version,
+        isHash: skill.isHash,
         agent: agent.name,
         scope: scope
       });
@@ -479,7 +463,8 @@ async function selectSkills(skills, message = null) {
   }
   
   const skillChoices = skills.map(s => {
-    const versionStr = s.version ? `@${s.version}` : '';
+    const displayVersion = formatVersion(s.version, s.isHash);
+    const versionStr = displayVersion ? `@${displayVersion}` : '';
     const descStr = s.description 
       ? ` ${c.gray}(${s.description.slice(0, 40)}${s.description.length > 40 ? '...' : ''})${c.reset}`
       : '';

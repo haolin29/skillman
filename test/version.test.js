@@ -24,15 +24,17 @@ test('InstalledSkillRegistry loads empty when file does not exist', async () => 
   await fs.rm(tmpDir, { recursive: true });
 });
 
-test('InstalledSkillRegistry can add and save skills', async () => {
+test('InstalledSkillRegistry can add and save skills with isHash flag', async () => {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'skillman-test-'));
   const registryPath = path.join(tmpDir, 'installed.json');
   
   const registry = new InstalledSkillRegistry(registryPath);
   
-  const skill = {
+  // Add skill with real version
+  const skillWithVersion = {
     name: 'test-skill',
     version: '1.0.0',
+    isHash: false,
     installedAt: new Date().toISOString(),
     agent: 'qoder',
     scope: 'global',
@@ -40,12 +42,33 @@ test('InstalledSkillRegistry can add and save skills', async () => {
     targetPath: '/path/to/target'
   };
   
-  await registry.add(skill);
+  await registry.add(skillWithVersion);
+  
+  // Add skill with hash version
+  const skillWithHash = {
+    name: 'hash-skill',
+    version: 'a1b2c3d4e5f6789012345678abcdef01',
+    isHash: true,
+    installedAt: new Date().toISOString(),
+    agent: 'qoder',
+    scope: 'global',
+    sourcePath: '/path/to/source2',
+    targetPath: '/path/to/target2'
+  };
+  
+  await registry.add(skillWithHash);
+  
   const skills = await registry.load();
   
-  assert.strictEqual(skills.length, 1);
-  assert.strictEqual(skills[0].name, 'test-skill');
-  assert.strictEqual(skills[0].version, '1.0.0');
+  assert.strictEqual(skills.length, 2);
+  
+  const realVersionSkill = skills.find(s => s.name === 'test-skill');
+  assert.strictEqual(realVersionSkill.isHash, false);
+  assert.strictEqual(realVersionSkill.version, '1.0.0');
+  
+  const hashSkill = skills.find(s => s.name === 'hash-skill');
+  assert.strictEqual(hashSkill.isHash, true);
+  assert.strictEqual(hashSkill.version, 'a1b2c3d4e5f6789012345678abcdef01');
   
   // Cleanup
   await fs.rm(tmpDir, { recursive: true });
@@ -99,6 +122,19 @@ test('formatInstalledSkills formats skills correctly', () => {
   assert.ok(result.some(line => line.includes('qoder:')));
   assert.ok(result.some(line => line.includes('skill-a@1.0.0 [G]')));
   assert.ok(result.some(line => line.includes('skill-b@2.0.0 [W]')));
+});
+
+test('formatInstalledSkills handles hash versions', () => {
+  const skills = [
+    { name: 'versioned-skill', version: '1.2.3', isHash: false, agent: 'qoder', scope: 'global' },
+    { name: 'hash-skill', version: 'a1b2c3d4e5f6789012345678abcdef01', isHash: true, agent: 'qoder', scope: 'workspace' }
+  ];
+  
+  const result = formatInstalledSkills(skills);
+  
+  // Both should be formatted with their versions
+  assert.ok(result.some(line => line.includes('versioned-skill@1.2.3')));
+  assert.ok(result.some(line => line.includes('hash-skill@a1b2c3d4e5f6789012345678abcdef01')));
 });
 
 test('uninstallSkill removes skill from registry and filesystem', async () => {

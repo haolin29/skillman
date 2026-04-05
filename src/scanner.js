@@ -6,6 +6,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { computeMD5 } from './hash.js';
 
 // Common skill container directories
 const SKILL_CONTAINERS = ['skills', '.agents/skills', '.claude/skills'];
@@ -70,6 +71,8 @@ export async function parseSkillFile(skillFile) {
     // Parse version from metadata block (supports quoted and unquoted)
     const metadataMatch = content.match(/metadata:[\s\S]*?(?=\n\w|$)/);
     let version;
+    let isHash = false;
+    
     if (metadataMatch) {
       const versionInMeta = metadataMatch[0].match(/^\s+version:\s*(.+)$/m);
       if (versionInMeta) {
@@ -78,11 +81,18 @@ export async function parseSkillFile(skillFile) {
       }
     }
     
+    // If no version found, compute MD5 hash of content
+    if (!version) {
+      version = computeMD5(content);
+      isHash = true;
+    }
+    
     if (nameMatch) {
       return {
         name: nameMatch[1].trim(),
         description: description,
-        version: version
+        version: version,
+        isHash: isHash
       };
     }
   } catch {
