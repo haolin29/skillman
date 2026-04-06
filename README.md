@@ -4,6 +4,8 @@ A CLI tool to install AI agent skills with intelligent version management.
 
 **Smart Versioning**: Automatically tracks skill versions — whether SemVer in metadata or MD5 hash of content — ensuring you always know what you have installed and when updates are available.
 
+![alt text](asset/screenshot-1.png)
+
 ## Installation
 
 ```bash
@@ -36,7 +38,7 @@ Install skills directly from GitHub or any git repository:
 skillman install vercel-labs/agent-skills
 
 # Full GitHub URL
-skillman install https://github.com/vercel-labs/agent-skills
+skillman install https://github.com/affaan-m/everything-claude-code
 
 # With subdirectory
 skillman install https://github.com/vercel-labs/agent-skills/tree/main/skills/web-design
