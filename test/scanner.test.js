@@ -139,4 +139,18 @@ description: |
     assert.strictEqual(skills.length, 1);
     assert.strictEqual(skills[0].description, 'First line of description');
   });
+
+  it('should find skill when SKILL.md is directly in root directory', async () => {
+    await fs.writeFile(
+      path.join(tempDir, 'SKILL.md'),
+      'name: root-skill\ndescription: A skill directly in root\n'
+    );
+
+    const skills = await scanSkills(tempDir);
+    
+    assert.strictEqual(skills.length, 1);
+    assert.strictEqual(skills[0].name, 'root-skill');
+    assert.strictEqual(skills[0].path, tempDir);
+    assert.strictEqual(skills[0].description, 'A skill directly in root');
+  });
 });

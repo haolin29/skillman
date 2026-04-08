@@ -113,6 +113,17 @@ async function scanSingleDir(dir) {
   try {
     const entries = await fs.readdir(dir, { withFileTypes: true });
     
+    // First, check if there's a SKILL.md directly in this directory
+    const rootSkillFile = path.join(dir, 'SKILL.md');
+    const rootSkillInfo = await parseSkillFile(rootSkillFile);
+    if (rootSkillInfo) {
+      skills.push({
+        ...rootSkillInfo,
+        path: dir
+      });
+    }
+    
+    // Then scan subdirectories for skills
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
       if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
