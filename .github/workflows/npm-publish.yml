@@ -1,12 +1,13 @@
-# This workflow will run tests using node and then publish a package to npm when a release is created
+# This workflow will run tests using node and then publish a package to npm when a tag is pushed
 # Uses npm Trusted Publisher (no token needed)
 # For more information see: https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
 
 name: NPM Package
 
 on:
-  release:
-    types: [created]
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   build:
