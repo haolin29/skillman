@@ -15,6 +15,7 @@ import { loadHistory, addWorkspace, saveLastUsed } from './history.js';
 import { downloadSkill, parseUrl, cleanupDownloads } from './downloader.js';
 import { InstalledSkillRegistry, formatInstalledSkills, uninstallSkill, updateSkill } from './version.js';
 import { formatVersion } from './hash.js';
+import { desymlink, showDoctorHelp } from './doctor.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VERSION = pkg.version || '1.0.0';
@@ -57,6 +58,7 @@ export function parseArgs(args) {
     dryRun: false,
     help: false,
     version: false,
+    recursive: false,
     initVersion: '1.0.0',
     initDescription: '',
     initAuthor: '',
@@ -68,6 +70,8 @@ export function parseArgs(args) {
     const arg = args[i];
     if (arg === '--dry-run' || arg === '-n') {
       result.dryRun = true;
+    } else if (arg === '--recursive' || arg === '-r') {
+      result.recursive = true;
     } else if (arg === '--help' || arg === '-h') {
       result.help = true;
     } else if (arg === '--version' || arg === '-v') {
@@ -121,6 +125,7 @@ ${c.cyan}${t('help.usage')}:${c.reset}
   skillman u <skill>          ${t('help.cmd.update')}
   skillman uninstall <skill>  ${t('help.cmd.uninstall')}
   skillman agents             ${t('help.cmd.agents')}
+  skillman doctor <command>   ${t('help.doctor_title')}
 
 ${c.cyan}${t('help.options')}:${c.reset}
   -n, --dry-run    ${t('help.opt.dry_run')}
@@ -139,6 +144,8 @@ ${c.cyan}${t('help.examples')}:${c.reset}
   skillman update my-skill     # ${t('help.cmd.update')}
   skillman uninstall my-skill  # ${t('help.cmd.uninstall')}
   skillman agents              # ${t('help.cmd.agents')}
+  skillman doctor desymlink    # ${t('help.cmd.doctor_desymlink')}
+  skillman doctor help         # Show doctor commands
 `);
 }
 
@@ -602,6 +609,9 @@ async function interactiveInstall(dryRun) {
   await continueInstallMultiple(selectedSkills, dryRun);
 }
 
+// Commands that should display the logo (interactive or complex operations)
+const LOGO_COMMANDS = new Set(['init', 'install', 'i', 'update', 'u', 'uninstall', 'doctor']);
+
 // Main CLI function
 export async function cli() {
   const args = process.argv.slice(2);
@@ -615,6 +625,13 @@ export async function cli() {
   if (options.version) {
     showVersion();
     return;
+  }
+
+  // Show logo for interactive mode or complex commands
+  const isInteractive = !options.command;
+  const needsLogo = isInteractive || LOGO_COMMANDS.has(options.command);
+  if (needsLogo) {
+    console.log(`${c.cyan}${LOGO}${c.reset}`);
   }
 
   if (options.command === 'agents') {
@@ -646,6 +663,18 @@ export async function cli() {
 
   if (options.command === 'update' || options.command === 'u') {
     await updateCommand(options.subcommand, options.dryRun);
+    return;
+  }
+
+  if (options.command === 'doctor') {
+    if (options.subcommand === 'desymlink') {
+      const targetPath = options.positional[0] || process.cwd();
+      await desymlink(targetPath, options.recursive, options.dryRun);
+    } else if (options.subcommand === 'help' || options.help) {
+      showDoctorHelp();
+    } else {
+      showDoctorHelp();
+    }
     return;
   }
 

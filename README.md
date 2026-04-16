@@ -71,6 +71,11 @@ skillman update my-skill
 # Uninstall a skill
 skillman uninstall my-skill
 
+# Convert symlinks to real files/directories
+skillman doctor desymlink
+skillman doctor desymlink ./my-skills -r  # Recursive
+skillman doctor desymlink -n              # Dry-run preview
+
 # Preview installation without making changes
 skillman --dry-run
 
@@ -92,6 +97,7 @@ skillman --version
 - **Bilingual Support**: Automatically switches between English and Chinese based on system language
 - **Dry-Run Mode**: Preview installations before applying changes
 - **Smart Path Resolution**: Automatically resolves relative paths to absolute paths
+- **Doctor Commands**: Diagnostic and repair utilities including `desymlink` for converting symlinks to real files
 
 ## Configuration
 
@@ -132,6 +138,36 @@ This enables:
 - **Clean Uninstall**: `skillman uninstall` removes both files and registry entries
 
 **Note on Hash Versions**: When a skill's SKILL.md doesn't include a `version` field in metadata, Skillman automatically computes an MD5 hash of the file content as the version identifier. This ensures every skill has a unique version for tracking and comparison purposes.
+
+## Doctor Commands
+
+The `doctor` command provides diagnostic and repair utilities for skill management.
+
+### Desymlink
+
+Convert symbolic links to real files or directories. Useful when you want to make a symlinked skill independent from its source.
+
+```bash
+# Convert all symlinks in current directory
+skillman doctor desymlink
+
+# Convert symlinks in specific directory
+skillman doctor desymlink ./my-skills
+
+# Recursively process subdirectories
+skillman doctor desymlink -r
+skillman doctor desymlink ./my-skills --recursive
+
+# Preview changes without applying
+skillman doctor desymlink -n
+skillman doctor desymlink --dry-run
+```
+
+Features:
+- Handles both file and directory symlinks
+- Automatically skips broken symlinks
+- Uses atomic operations (temp file + rename) for safety
+- Shows summary with conversion statistics
 
 ## Development
 
