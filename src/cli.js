@@ -6,6 +6,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { select, confirm, input, Separator, checkbox } from '@inquirer/prompts';
+import { skillCheckbox } from './skill-checkbox.js';
 import pkg from '../package.json' with { type: 'json' };
 import { scanSkills, parseSkillFile } from './scanner.js';
 import { installSkill } from './installer.js';
@@ -478,11 +479,12 @@ async function selectSkills(skills, message = null) {
       : '';
     return {
       name: `${s.name}${versionStr}${descStr}`,
-      value: s
+      value: s,
+      description: s.description // Store full description for detail view
     };
   });
 
-  const selectedSkills = await checkbox({
+  const selectedSkills = await skillCheckbox({
     message: (message || t('step.select_skills')) + ':',
     choices: skillChoices,
     pageSize: 10,
