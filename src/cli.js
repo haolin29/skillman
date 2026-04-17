@@ -177,7 +177,6 @@ export async function initSkill(skillName, options) {
   const author = options.initAuthor || '';
   const createDir = options.initDir !== false;
   
-  console.log(`${c.cyan}${LOGO}${c.reset}`);
   log.step(t('msg.init_skill') || 'Initializing skill template');
   
   const targetDir = createDir ? path.join(process.cwd(), name) : process.cwd();
@@ -229,7 +228,6 @@ ${metadataSection}
 
 // Install from URL or local path
 async function installFromUrl(url, dryRun) {
-  console.log(`${c.cyan}${LOGO}${c.reset}`);
   console.log(`${c.gray}${t('app.description')}${dryRun ? c.yellow + ' [DRY-RUN]' + c.reset : ''}\n`);
 
   const parsed = parseUrl(url);
@@ -591,7 +589,6 @@ async function updateCommand(skillName, dryRun) {
 
 // Interactive install flow
 async function interactiveInstall(dryRun) {
-  console.log(`${c.cyan}${LOGO}${c.reset}`);
   console.log(`${c.gray}${t('app.description')}${dryRun ? c.yellow + ' [DRY-RUN]' + c.reset : ''}\n`);
 
   // Step 1: Scan skills
