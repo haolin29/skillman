@@ -132,9 +132,9 @@ test('formatInstalledSkills handles hash versions', () => {
   
   const result = formatInstalledSkills(skills);
   
-  // Both should be formatted with their versions
+  // Versioned skill shows full version, hash skill shows short version (first 8 chars)
   assert.ok(result.some(line => line.includes('versioned-skill@1.2.3')));
-  assert.ok(result.some(line => line.includes('hash-skill@a1b2c3d4e5f6789012345678abcdef01')));
+  assert.ok(result.some(line => line.includes('hash-skill@a1b2c3d4')));
 });
 
 test('uninstallSkill removes skill from registry and filesystem', async () => {

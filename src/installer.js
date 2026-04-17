@@ -17,6 +17,7 @@ import { InstalledSkillRegistry } from './version.js';
  * @param {boolean} metadata.isHash - Whether version is a hash
  * @param {string} metadata.agent - Target agent name
  * @param {string} metadata.scope - Installation scope (global|workspace)
+ * @param {string} metadata.sourceUrl - Original source URL (for remote installs)
  */
 export async function installSkill(srcPath, targetDir, metadata = {}) {
   await copyDir(srcPath, targetDir);
@@ -31,7 +32,7 @@ export async function installSkill(srcPath, targetDir, metadata = {}) {
       installedAt: new Date().toISOString(),
       agent: metadata.agent,
       scope: metadata.scope,
-      sourcePath: srcPath,
+      sourcePath: metadata.sourceUrl || srcPath,
       targetPath: targetDir
     });
   }

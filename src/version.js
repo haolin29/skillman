@@ -6,6 +6,8 @@
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
+import { downloadSkill, parseUrl } from './downloader.js';
+import { formatVersion } from './hash.js';
 
 const CONFIG_DIR = path.join(os.homedir(), '.config', 'skillman');
 const INSTALLED_FILE = path.join(CONFIG_DIR, 'installed.json');
@@ -118,7 +120,7 @@ export function formatInstalledSkills(skills, t = (key) => key) {
     lines.push(`${agent}:`);
     for (const skill of agentSkills) {
       const scope = skill.scope === 'global' ? 'G' : 'W';
-      const version = skill.version || 'unknown';
+      const version = formatVersion(skill.version, skill.isHash);
       lines.push(`  ${skill.name}@${version} [${scope}]`);
     }
     lines.push('');
@@ -173,22 +175,48 @@ export async function updateSkill(skillName, registry = new InstalledSkillRegist
     return { success: false, message: 'Cannot update: source path not recorded' };
   }
   
-  try {
-    await fs.access(skill.sourcePath);
-  } catch {
-    return { success: false, message: 'Source no longer available' };
+  let sourcePath = skill.sourcePath;
+  let isRemote = false;
+  let tempDownloadPath = null;
+  
+  // Check if sourcePath is a URL
+  const parsed = parseUrl(sourcePath);
+  if (parsed.type !== 'local') {
+    isRemote = true;
+    try {
+      tempDownloadPath = await downloadSkill(sourcePath);
+      sourcePath = tempDownloadPath;
+    } catch (error) {
+      return { success: false, message: `Failed to download: ${error.message}` };
+    }
+  } else {
+    // Local path - check if it exists
+    try {
+      await fs.access(sourcePath);
+    } catch {
+      return { success: false, message: 'Source no longer available' };
+    }
   }
   
-  // Reinstall
-  await copyDir(skill.sourcePath, skill.targetPath);
-  
-  // Update registry with new timestamp
-  await registry.add({
-    ...skill,
-    updatedAt: new Date().toISOString()
-  });
-  
-  return { success: true, message: 'Updated successfully' };
+  try {
+    // Reinstall
+    await copyDir(sourcePath, skill.targetPath);
+    
+    // Update registry with new timestamp
+    await registry.add({
+      ...skill,
+      updatedAt: new Date().toISOString()
+    });
+    
+    return { success: true, message: 'Updated successfully' };
+  } finally {
+    // Cleanup temp download if it was a remote source
+    if (isRemote && tempDownloadPath) {
+      try {
+        await fs.rm(tempDownloadPath, { recursive: true, force: true });
+      } catch {}
+    }
+  }
 }
 
 /**

@@ -263,8 +263,8 @@ async function installFromUrl(url, dryRun) {
   // Step 3: Select skills
   const selectedSkills = await selectSkills(skills);
 
-  // Continue with rest of interactive flow
-  await continueInstallMultiple(selectedSkills, dryRun);
+  // Continue with rest of interactive flow, passing the original URL
+  await continueInstallMultiple(selectedSkills, dryRun, isRemote ? url : null);
 
   // Cleanup temp downloads
   if (isRemote) {
@@ -273,7 +273,7 @@ async function installFromUrl(url, dryRun) {
 }
 
 // Continue installation after skill selection (multiple skills)
-async function continueInstallMultiple(selectedSkills, dryRun) {
+async function continueInstallMultiple(selectedSkills, dryRun, sourceUrl = null) {
   // Load last used preferences
   const { lastAgent, lastScope } = await loadHistory();
   const agents = await loadAgents();
@@ -444,7 +444,8 @@ async function continueInstallMultiple(selectedSkills, dryRun) {
         version: skill.version,
         isHash: skill.isHash,
         agent: agent.name,
-        scope: scope
+        scope: scope,
+        sourceUrl: sourceUrl
       });
       log.success(`${t('msg.target')}: ${targetDir}`);
       installedCount++;
