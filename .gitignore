@@ -23,4 +23,5 @@ coverage/
 dist/
 
 # docs
+.claude/
 docs/superpowers/

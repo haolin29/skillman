@@ -35,6 +35,7 @@ const translations = {
     'step.scan': '扫描可安装的 Skills...',
     'step.select_skill': '选择要安装的 Skill',
     'step.select_skills': '选择要安装的 Skills（空格选择，回车确认）',
+    'step.select_target_mode': '选择安装目标',
     'step.select_agent': '选择目标 Agent',
     'step.select_scope': '选择安装范围',
     'step.install': '开始安装...',
@@ -76,6 +77,7 @@ const translations = {
     'msg.init_skill': '初始化 Skill 模板',
     'msg.created': '已创建',
     'msg.init_hint': '编辑 SKILL.md 来自定义你的 skill',
+    'msg.last_target_invalid': '上次安装目标已失效，切换到手动选择',
     
     // Doctor messages
     'msg.doctor_desymlink_scan': '正在扫描符号链接...',
@@ -104,6 +106,8 @@ const translations = {
     'option.global': '全局',
     'option.workspace': '工作区',
     'option.custom_path': '自定义路径',
+    'option.last_install_target': '上次安装目标',
+    'option.choose_target_manually': '手动选择目标',
     
     // Errors
     'error.empty_path': '路径不能为空',
@@ -142,6 +146,7 @@ const translations = {
     'step.scan': 'Scanning available skills...',
     'step.select_skill': 'Select skill to install',
     'step.select_skills': 'Select skills to install (space to select, enter to confirm)',
+    'step.select_target_mode': 'Select install target',
     'step.select_agent': 'Select target agent',
     'step.select_scope': 'Select installation scope',
     'step.install': 'Starting installation...',
@@ -184,6 +189,7 @@ const translations = {
     'msg.init_skill': 'Initializing skill template',
     'msg.created': 'Created',
     'msg.init_hint': 'Edit SKILL.md to customize your skill',
+    'msg.last_target_invalid': 'Last install target is no longer valid, switching to manual selection',
     
     // Doctor messages
     'msg.doctor_desymlink_scan': 'Scanning for symlinks...',
@@ -212,6 +218,8 @@ const translations = {
     'option.global': 'Global',
     'option.workspace': 'Workspace',
     'option.custom_path': 'Custom path',
+    'option.last_install_target': 'Last install target',
+    'option.choose_target_manually': 'Choose target manually',
     
     // Errors
     'error.empty_path': 'Path cannot be empty',

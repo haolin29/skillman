@@ -12,11 +12,17 @@ import { scanSkills, parseSkillFile } from './scanner.js';
 import { installSkill } from './installer.js';
 import { loadAgents } from './config.js';
 import { t } from './i18n.js';
-import { loadHistory, addWorkspace, saveLastUsed } from './history.js';
+import { loadHistory, addWorkspace, saveLastUsed, saveLastInstallTarget } from './history.js';
 import { downloadSkill, parseUrl, cleanupDownloads } from './downloader.js';
 import { InstalledSkillRegistry, formatInstalledSkills, uninstallSkill, updateSkill } from './version.js';
 import { formatVersion } from './hash.js';
 import { desymlink, showDoctorHelp } from './doctor.js';
+import {
+  formatLastInstallTargetChoice,
+  persistLastInstallTargetIfNeeded,
+  resolveInstallRoot,
+  validateLastInstallTarget
+} from './install-target.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VERSION = pkg.version || '1.0.0';
@@ -274,51 +280,86 @@ async function installFromUrl(url, dryRun) {
 // Continue installation after skill selection (multiple skills)
 async function continueInstallMultiple(selectedSkills, dryRun, sourceUrl = null) {
   // Load last used preferences
-  const { lastAgent, lastScope } = await loadHistory();
+  const { lastAgent, lastScope, lastInstallTarget } = await loadHistory();
   const agents = await loadAgents();
-  
-  // Step 4: Select agent (with default from history)
   const agentList = Object.values(agents);
-  const defaultAgentIndex = lastAgent 
-    ? agentList.findIndex(a => a.name === lastAgent)
-    : -1;
-  
-  const agentChoices = agentList.map(a => ({
-    name: a.displayName,
-    value: a
-  }));
+  let agent;
+  let scope;
+  let workspaceRoot = null;
 
-  const agent = await select({
-    message: t('step.select_agent') + ':',
-    choices: agentChoices,
-    pageSize: 10,
-    default: defaultAgentIndex >= 0 ? agentChoices[defaultAgentIndex].value : undefined
-  });
+  const reusableTarget = await validateLastInstallTarget(lastInstallTarget, agents);
+
+  if (lastInstallTarget && !reusableTarget) {
+    log.warn(t('msg.last_target_invalid'));
+  }
+
+  if (reusableTarget) {
+    const targetMode = await select({
+      message: t('step.select_target_mode') + ':',
+      choices: [
+        {
+          name: formatLastInstallTargetChoice(reusableTarget, agents, t),
+          value: 'last-target'
+        },
+        {
+          name: t('option.choose_target_manually'),
+          value: 'manual'
+        }
+      ],
+      default: 'last-target'
+    });
+
+    if (targetMode === 'last-target') {
+      agent = agents[reusableTarget.agent];
+      scope = reusableTarget.scope;
+      workspaceRoot = reusableTarget.workspaceRoot;
+    }
+  }
+
+  // Step 4: Select agent (with default from history)
+  if (!agent) {
+    const defaultAgentIndex = lastAgent
+      ? agentList.findIndex(candidate => candidate.name === lastAgent)
+      : -1;
+
+    const agentChoices = agentList.map(candidate => ({
+      name: candidate.displayName,
+      value: candidate
+    }));
+
+    agent = await select({
+      message: t('step.select_agent') + ':',
+      choices: agentChoices,
+      pageSize: 10,
+      default: defaultAgentIndex >= 0 ? agentChoices[defaultAgentIndex].value : undefined
+    });
+  }
 
   log.success(`${t('msg.agent')}: ${agent.displayName}`);
 
   // Step 5: Select scope (with default from history)
-  const scopeChoices = [
-    { name: `${t('option.global')} ${c.gray}(${agent.globalSkillsDir})${c.reset}`, value: 'global' },
-    { name: `${t('option.workspace')} ${c.gray}(${t('option.custom_path')})${c.reset}`, value: 'workspace' }
-  ];
-  
-  const defaultScopeIndex = lastScope 
-    ? scopeChoices.findIndex(s => s.value === lastScope)
-    : -1;
+  if (!scope) {
+    const scopeChoices = [
+      { name: `${t('option.global')} ${c.gray}(${agent.globalSkillsDir})${c.reset}`, value: 'global' },
+      { name: `${t('option.workspace')} ${c.gray}(${t('option.custom_path')})${c.reset}`, value: 'workspace' }
+    ];
 
-  const scope = await select({
-    message: t('step.select_scope') + ':',
-    choices: scopeChoices,
-    default: defaultScopeIndex >= 0 ? scopeChoices[defaultScopeIndex].value : undefined
-  });
+    const defaultScopeIndex = lastScope
+      ? scopeChoices.findIndex(candidate => candidate.value === lastScope)
+      : -1;
+
+    scope = await select({
+      message: t('step.select_scope') + ':',
+      choices: scopeChoices,
+      default: defaultScopeIndex >= 0 ? scopeChoices[defaultScopeIndex].value : undefined
+    });
+  }
 
   // Save preferences for next time
   await saveLastUsed(agent.name, scope);
 
   // Step 6: If workspace scope, ask for workspace path
-  let workspacePath = agent.skillsDir;
-  if (scope === 'workspace') {
+  if (scope === 'workspace' && !workspaceRoot) {
     const { workspaces } = await loadHistory(agent.name);
     
     let customPath;
@@ -364,14 +405,14 @@ async function continueInstallMultiple(selectedSkills, dryRun, sourceUrl = null)
     }
     
     // Save to history (with agent name)
-    await addWorkspace(agent.name, customPath);
-    
-    // Extract relative skills directory from agent config
-    const skillsRelDir = agent.skillsDir.includes(path.sep)
-      ? agent.skillsDir.split(path.sep).slice(-2).join(path.sep)
-      : agent.skillsDir;
-    workspacePath = path.join(customPath.trim(), skillsRelDir);
-    log.info(`${t('msg.workspace_dir')}: ${workspacePath}`);
+    workspaceRoot = customPath.trim();
+    await addWorkspace(agent.name, workspaceRoot);
+  }
+
+  const installRoot = resolveInstallRoot(agent, scope, workspaceRoot);
+
+  if (scope === 'workspace') {
+    log.info(`${t('msg.workspace_dir')}: ${installRoot}`);
   }
 
   // Dry-run preview for all skills
@@ -379,9 +420,7 @@ async function continueInstallMultiple(selectedSkills, dryRun, sourceUrl = null)
     log.step(t('step.preview'));
     
     for (const skill of selectedSkills) {
-      const targetDir = scope === 'global'
-        ? path.join(agent.globalSkillsDir, skill.name)
-        : path.join(workspacePath, skill.name);
+      const targetDir = path.join(installRoot, skill.name);
       
       log.dry(`\n${skill.name}:`);
       log.dry(`  ${t('msg.source')}: ${skill.path}`);
@@ -410,9 +449,7 @@ async function continueInstallMultiple(selectedSkills, dryRun, sourceUrl = null)
   let skippedCount = 0;
   
   for (const skill of selectedSkills) {
-    const targetDir = scope === 'global'
-      ? path.join(agent.globalSkillsDir, skill.name)
-      : path.join(workspacePath, skill.name);
+    const targetDir = path.join(installRoot, skill.name);
     
     log.step(`${t('msg.installing') || 'Installing'}: ${skill.name}`);
     
@@ -460,6 +497,15 @@ async function continueInstallMultiple(selectedSkills, dryRun, sourceUrl = null)
   console.log(`  ${t('msg.agent')}:    ${agent.displayName}`);
   console.log(`  ${t('msg.scope')}:    ${scope}`);
   console.log();
+
+  await persistLastInstallTargetIfNeeded({
+    dryRun,
+    installedCount,
+    agent,
+    scope,
+    workspaceRoot,
+    saveLastInstallTarget
+  });
 }
 
 // Helper: Select skills from list

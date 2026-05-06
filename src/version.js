@@ -10,21 +10,22 @@ import { downloadSkill, parseUrl } from './downloader.js';
 import { formatVersion } from './hash.js';
 
 const CONFIG_DIR = path.join(os.homedir(), '.config', 'skillman');
-const INSTALLED_FILE = path.join(CONFIG_DIR, 'installed.json');
 
 /**
  * Get the path to the installed skills registry file
  * @returns {string}
  */
 export function getInstalledSkillsPath() {
-  return INSTALLED_FILE;
+  return process.env.SKILLMAN_INSTALLED_FILE
+    ? process.env.SKILLMAN_INSTALLED_FILE
+    : path.join(CONFIG_DIR, 'installed.json');
 }
 
 /**
  * Registry for tracking installed skills
  */
 export class InstalledSkillRegistry {
-  constructor(registryPath = INSTALLED_FILE) {
+  constructor(registryPath = getInstalledSkillsPath()) {
     this.registryPath = registryPath;
   }
 
