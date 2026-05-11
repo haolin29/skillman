@@ -28,3 +28,6 @@ docs/superpowers/
 
 # Worktrees
 .worktrees/
+
+# Misc
+AGENTS.md
