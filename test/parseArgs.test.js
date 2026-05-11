@@ -61,4 +61,15 @@ describe('parseArgs', () => {
     assert.strictEqual(result.initDescription, 'Description');
     assert.strictEqual(result.initAuthor, 'Author');
   });
+
+  it('should parse --all flag', () => {
+    const result = parseArgs(['update', '--all']);
+    assert.strictEqual(result.command, 'update');
+    assert.strictEqual(result.all, true);
+  });
+
+  it('should default all to false when not present', () => {
+    const result = parseArgs(['update', 'my-skill']);
+    assert.strictEqual(result.all, false);
+  });
 });

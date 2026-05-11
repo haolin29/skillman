@@ -8,6 +8,7 @@ import path from 'path';
 import os from 'os';
 import { downloadSkill, parseUrl } from './downloader.js';
 import { formatVersion } from './hash.js';
+import { parseSkillFile, scanSkills } from './scanner.js';
 
 const CONFIG_DIR = path.join(os.homedir(), '.config', 'skillman');
 
@@ -63,35 +64,51 @@ export class InstalledSkillRegistry {
    */
   async add(skill) {
     const skills = await this.load();
-    const existingIndex = skills.findIndex(s => s.name === skill.name);
-    
+    const existingIndex = skills.findIndex(
+      s => s.name === skill.name && s.agent === skill.agent
+    );
+
     if (existingIndex >= 0) {
       skills[existingIndex] = skill;
     } else {
       skills.push(skill);
     }
-    
+
     await this.save(skills);
   }
 
   /**
-   * Remove a skill from the registry
+   * Remove a skill by (name, agent) composite key
    * @param {string} skillName
+   * @param {string} agentName
    */
-  async remove(skillName) {
+  async remove(skillName, agentName) {
     const skills = await this.load();
-    const filtered = skills.filter(s => s.name !== skillName);
+    const filtered = skills.filter(
+      s => !(s.name === skillName && s.agent === agentName)
+    );
     await this.save(filtered);
   }
 
   /**
-   * Find a skill by name
+   * Find a skill by (name, agent) composite key
    * @param {string} skillName
+   * @param {string} agentName
    * @returns {Promise<Object|undefined>}
    */
-  async find(skillName) {
+  async find(skillName, agentName) {
     const skills = await this.load();
-    return skills.find(s => s.name === skillName);
+    return skills.find(s => s.name === skillName && s.agent === agentName);
+  }
+
+  /**
+   * Find all skills with a given name (across all agents)
+   * @param {string} skillName
+   * @returns {Promise<Array>}
+   */
+  async findByName(skillName) {
+    const skills = await this.load();
+    return skills.filter(s => s.name === skillName);
   }
 }
 
@@ -136,27 +153,38 @@ export function formatInstalledSkills(skills, t = (key) => key) {
  * @param {InstalledSkillRegistry} registry
  * @returns {Promise<boolean>} - true if uninstalled, false if not found
  */
-export async function uninstallSkill(skillName, registry = new InstalledSkillRegistry()) {
-  const skill = await registry.find(skillName);
-  
+export async function uninstallSkill(skillName, agentName, registry = new InstalledSkillRegistry()) {
+  const skill = await registry.find(skillName, agentName);
+
   if (!skill) {
     return false;
   }
-  
-  // Remove from filesystem
+
   if (skill.targetPath) {
     try {
       await fs.rm(skill.targetPath, { recursive: true, force: true });
     } catch (error) {
-      // Log but continue - we still want to remove from registry
       console.warn(`Warning: Could not remove skill directory: ${error.message}`);
     }
   }
-  
-  // Remove from registry
-  await registry.remove(skillName);
-  
+
+  await registry.remove(skillName, agentName);
+
   return true;
+}
+
+/**
+ * Resolve the specific skill directory within a downloaded path.
+ * If the path is already a skill directory (has SKILL.md), return it as-is.
+ * Otherwise scan for a skill matching skillName within it (handles repo-level downloads).
+ */
+async function resolveSkillDir(downloadedPath, skillName) {
+  const direct = await parseSkillFile(path.join(downloadedPath, 'SKILL.md'));
+  if (direct) return downloadedPath;
+
+  const found = await scanSkills(downloadedPath);
+  const match = found.find(s => s.name === skillName);
+  return match ? match.path : downloadedPath;
 }
 
 /**
@@ -165,53 +193,59 @@ export async function uninstallSkill(skillName, registry = new InstalledSkillReg
  * @param {InstalledSkillRegistry} registry
  * @returns {Promise<{success: boolean, message: string}>}
  */
-export async function updateSkill(skillName, registry = new InstalledSkillRegistry()) {
-  const skill = await registry.find(skillName);
-  
+export async function updateSkill(skillName, agentName, registry = new InstalledSkillRegistry()) {
+  const skill = await registry.find(skillName, agentName);
+
   if (!skill) {
-    return { success: false, message: 'Skill not installed' };
+    return { success: false, skipped: false, oldVersion: '?', newVersion: '?', message: 'Skill not installed' };
   }
-  
+
   if (!skill.sourcePath) {
-    return { success: false, message: 'Cannot update: source path not recorded' };
+    return { success: false, skipped: false, oldVersion: formatVersion(skill.version, skill.isHash) || '?', newVersion: '?', message: 'Cannot update: source path not recorded' };
   }
-  
+
+  const oldVersion = formatVersion(skill.version, skill.isHash) || '?';
+
   let sourcePath = skill.sourcePath;
   let isRemote = false;
   let tempDownloadPath = null;
-  
-  // Check if sourcePath is a URL
+
   const parsed = parseUrl(sourcePath);
   if (parsed.type !== 'local') {
     isRemote = true;
     try {
       tempDownloadPath = await downloadSkill(sourcePath);
-      sourcePath = tempDownloadPath;
+      sourcePath = await resolveSkillDir(tempDownloadPath, skillName);
     } catch (error) {
-      return { success: false, message: `Failed to download: ${error.message}` };
+      return { success: false, skipped: false, oldVersion, newVersion: '?', message: `Failed to download: ${error.message}` };
     }
   } else {
-    // Local path - check if it exists
     try {
       await fs.access(sourcePath);
     } catch {
-      return { success: false, message: 'Source no longer available' };
+      return { success: false, skipped: false, oldVersion, newVersion: '?', message: 'Source no longer available' };
     }
   }
-  
+
   try {
-    // Reinstall
+    const sourceSkillFile = path.join(sourcePath, 'SKILL.md');
+    const sourceSkill = await parseSkillFile(sourceSkillFile);
+    const newVersion = sourceSkill ? (formatVersion(sourceSkill.version, sourceSkill.isHash) || '?') : '?';
+
+    if (oldVersion !== '?' && newVersion !== '?' && oldVersion === newVersion) {
+      return { success: true, skipped: true, oldVersion, newVersion, message: 'Already up to date' };
+    }
+
     await copyDir(sourcePath, skill.targetPath);
-    
-    // Update registry with new timestamp
     await registry.add({
       ...skill,
+      version: sourceSkill?.version || skill.version,
+      isHash: sourceSkill?.isHash ?? skill.isHash,
       updatedAt: new Date().toISOString()
     });
-    
-    return { success: true, message: 'Updated successfully' };
+
+    return { success: true, skipped: false, oldVersion, newVersion, message: 'Updated successfully' };
   } finally {
-    // Cleanup temp download if it was a remote source
     if (isRemote && tempDownloadPath) {
       try {
         await fs.rm(tempDownloadPath, { recursive: true, force: true });

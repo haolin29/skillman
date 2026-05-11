@@ -63,6 +63,7 @@ export function parseArgs(args) {
     command: null,
     subcommand: null,
     dryRun: false,
+    all: false,
     help: false,
     version: false,
     recursive: false,
@@ -77,6 +78,8 @@ export function parseArgs(args) {
     const arg = args[i];
     if (arg === '--dry-run' || arg === '-n') {
       result.dryRun = true;
+    } else if (arg === '--all') {
+      result.all = true;
     } else if (arg === '--recursive' || arg === '-r') {
       result.recursive = true;
     } else if (arg === '--help' || arg === '-h') {
@@ -129,7 +132,9 @@ ${c.cyan}${t('help.usage')}:${c.reset}
   skillman i <path>           ${t('help.cmd.install')}
   skillman list               ${t('help.cmd.list')}
   skillman update <skill>     ${t('help.cmd.update')}
+  skillman update --all       ${t('help.cmd.update_all')}
   skillman u <skill>          ${t('help.cmd.update')}
+  skillman u --all            ${t('help.cmd.update_all')}
   skillman uninstall <skill>  ${t('help.cmd.uninstall')}
   skillman agents             ${t('help.cmd.agents')}
   skillman doctor <command>   ${t('help.doctor_title')}
@@ -159,6 +164,51 @@ ${c.cyan}${t('help.examples')}:${c.reset}
 // Show version
 function showVersion() {
   console.log(`${t('app.name').toLowerCase()} v${VERSION}`);
+}
+
+// Group skills array by agent name
+function groupSkillsByAgent(skills) {
+  return skills.reduce((acc, skill) => {
+    const agent = skill.agent || 'unknown';
+    if (!acc[agent]) acc[agent] = [];
+    acc[agent].push(skill);
+    return acc;
+  }, {});
+}
+
+// Perform updates for a list of skill records and print grouped output
+async function performUpdates(skills, registry) {
+  const byAgent = groupSkillsByAgent(skills);
+  let updated = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  for (const [agentName, agentSkills] of Object.entries(byAgent)) {
+    console.log(`\n${agentName}:`);
+    for (const skill of agentSkills) {
+      const result = await updateSkill(skill.name, skill.agent, registry);
+      const namePad = skill.name.padEnd(25);
+      const versions = `${result.oldVersion || '?'}  →  ${result.newVersion || '?'}`;
+      if (result.success && !result.skipped) {
+        log.success(`  ${namePad} ${versions}`);
+        updated++;
+      } else if (result.success && result.skipped) {
+        log.info(`  ${namePad} ${versions}   (${t('msg.already_up_to_date')})`);
+        skipped++;
+      } else {
+        log.error(`  ${skill.name.padEnd(25)} ${result.message}`);
+        failed++;
+      }
+    }
+  }
+
+  console.log(`\n${c.green}✨ ${t('msg.update_complete')}${c.reset}\n`);
+  console.log(`  ${t('msg.update_summary_updated')}:  ${updated}`);
+  console.log(`  ${t('msg.update_summary_skipped')}: ${skipped}`);
+  if (failed > 0) {
+    console.log(`  ${t('msg.update_summary_failed')}:   ${failed}`);
+  }
+  console.log();
 }
 
 // List agents
@@ -564,73 +614,162 @@ async function uninstallCommand(skillName, dryRun) {
     log.error(t('error.no_skill_name') || 'Please specify a skill name');
     process.exit(1);
   }
-  
+
   const registry = new InstalledSkillRegistry();
-  const skill = await registry.find(skillName);
-  
-  if (!skill) {
+  const matches = await registry.findByName(skillName);
+
+  if (matches.length === 0) {
     log.error(t('error.skill_not_installed'));
     process.exit(1);
   }
-  
-  if (dryRun) {
-    log.dry(`${t('msg.uninstalling') || 'Would uninstall'}: ${skillName}`);
-    log.dry(`  ${t('msg.target')}: ${skill.targetPath}`);
-    return;
-  }
-  
-  const confirmed = await confirm({ 
-    message: `${t('prompt.uninstall')} ${skillName}?`, 
-    default: false 
-  });
-  
-  if (!confirmed) {
-    log.info(t('msg.cancelled') || 'Cancelled');
-    return;
-  }
-  
-  const success = await uninstallSkill(skillName, registry);
-  
-  if (success) {
-    log.success(`${t('msg.uninstalled')}: ${skillName}`);
+
+  let skillsToUninstall;
+  if (matches.length === 1) {
+    skillsToUninstall = matches;
   } else {
-    log.error(t('error.unknown'));
-    process.exit(1);
+    const choices = matches.map(s => ({
+      name: `${s.name}${formatVersion(s.version, s.isHash) ? `@${formatVersion(s.version, s.isHash)}` : ''} [${s.scope === 'global' ? 'G' : 'W'}] (${s.agent})`,
+      value: s,
+      checked: true
+    }));
+    skillsToUninstall = await skillCheckbox({
+      message: `${t('prompt.uninstall')} ${skillName}:`,
+      choices,
+      pageSize: 10
+    });
+  }
+
+  if (skillsToUninstall.length === 0) {
+    log.info(t('msg.cancelled'));
+    return;
+  }
+
+  if (dryRun) {
+    for (const s of skillsToUninstall) {
+      log.dry(`${t('msg.uninstalling')}: ${s.name} (${s.agent})`);
+      log.dry(`  ${t('msg.target')}: ${s.targetPath}`);
+    }
+    return;
+  }
+
+  const label = matches.length > 1
+    ? `${skillName} (${skillsToUninstall.length} entries)`
+    : skillName;
+  const confirmed = await confirm({
+    message: `${t('prompt.uninstall')} ${label}?`,
+    default: false
+  });
+
+  if (!confirmed) {
+    log.info(t('msg.cancelled'));
+    return;
+  }
+
+  for (const s of skillsToUninstall) {
+    const success = await uninstallSkill(s.name, s.agent, registry);
+    if (success) {
+      log.success(`${t('msg.uninstalled')}: ${s.name} (${s.agent})`);
+    } else {
+      log.error(`${t('error.unknown') || 'Unknown error'}: ${s.name}`);
+    }
   }
 }
 
 // Update a skill
-async function updateCommand(skillName, dryRun) {
-  if (!skillName) {
-    log.error(t('error.no_skill_name') || 'Please specify a skill name');
-    process.exit(1);
-  }
-  
+async function updateCommand(skillName, options) {
+  const dryRun = typeof options === 'boolean' ? options : (options?.dryRun ?? false);
+  const all = typeof options === 'object' ? (options?.all ?? false) : false;
+
   const registry = new InstalledSkillRegistry();
-  const skill = await registry.find(skillName);
-  
-  if (!skill) {
-    log.error(t('error.skill_not_installed'));
-    process.exit(1);
-  }
-  
-  if (dryRun) {
-    log.dry(`${t('msg.updating') || 'Would update'}: ${skillName}`);
-    log.dry(`  ${t('msg.source')}: ${skill.sourcePath}`);
-    log.dry(`  ${t('msg.target')}: ${skill.targetPath}`);
+
+  // Path 1: specific skill name
+  if (skillName) {
+    const matches = await registry.findByName(skillName);
+    if (matches.length === 0) {
+      log.error(t('error.skill_not_installed'));
+      process.exit(1);
+    }
+
+    let skillsToUpdate;
+    if (matches.length === 1) {
+      skillsToUpdate = matches;
+    } else {
+      const choices = matches.map(s => ({
+        name: `${s.name}${formatVersion(s.version, s.isHash) ? `@${formatVersion(s.version, s.isHash)}` : ''} [${s.scope === 'global' ? 'G' : 'W'}] (${s.agent})`,
+        value: s,
+        checked: true
+      }));
+      skillsToUpdate = await skillCheckbox({
+        message: t('prompt.select_skills_to_update') + ':',
+        choices,
+        pageSize: 10
+      });
+    }
+
+    if (dryRun) {
+      log.step(t('step.preview'));
+      for (const s of skillsToUpdate) {
+        log.dry(`${s.name} (${s.agent}): ${s.sourcePath} → ${s.targetPath}`);
+      }
+      return;
+    }
+
+    await performUpdates(skillsToUpdate, registry);
     return;
   }
-  
-  log.step(`${t('msg.updating') || 'Updating'}: ${skillName}`);
-  
-  const result = await updateSkill(skillName, registry);
-  
-  if (result.success) {
-    log.success(`${t('msg.updated')}: ${skillName}`);
-  } else {
-    log.error(result.message);
+
+  // Load all installed skills
+  const allSkills = await registry.load();
+  if (allSkills.length === 0) {
+    log.error(t('msg.no_skills_to_update'));
     process.exit(1);
   }
+
+  // Path 2: --all flag
+  if (all) {
+    if (dryRun) {
+      log.step(t('step.preview'));
+      for (const s of allSkills) {
+        log.dry(`${s.name} (${s.agent}): ${s.sourcePath} → ${s.targetPath}`);
+      }
+      return;
+    }
+    await performUpdates(allSkills, registry);
+    return;
+  }
+
+  // Path 3: interactive checkbox grouped by agent
+  const byAgent = groupSkillsByAgent(allSkills);
+  const choices = [];
+  for (const [agentName, agentSkills] of Object.entries(byAgent)) {
+    choices.push(new Separator(`──── ${agentName} ────`));
+    for (const s of agentSkills) {
+      const ver = formatVersion(s.version, s.isHash);
+      choices.push({
+        name: `${s.name}${ver ? `@${ver}` : ''} [${s.scope === 'global' ? 'G' : 'W'}]`,
+        value: s,
+        checked: true
+      });
+    }
+  }
+
+  const selected = await skillCheckbox({
+    message: t('prompt.select_skills_to_update') + ':',
+    choices,
+    pageSize: 10,
+    loop: false,
+    validate: (sel) => sel.length > 0 || t('error.no_selection')
+  });
+
+  if (dryRun) {
+    log.step(t('step.preview'));
+    for (const s of selected) {
+      log.dry(`${s.name} (${s.agent}): ${s.sourcePath} → ${s.targetPath}`);
+    }
+    return;
+  }
+
+  await performUpdates(selected, registry);
 }
 
 // Interactive install flow
@@ -708,7 +847,7 @@ export async function cli() {
   }
 
   if (options.command === 'update' || options.command === 'u') {
-    await updateCommand(options.subcommand, options.dryRun);
+    await updateCommand(options.subcommand, options);
     return;
   }
 

@@ -78,7 +78,15 @@ const translations = {
     'msg.created': '已创建',
     'msg.init_hint': '编辑 SKILL.md 来自定义你的 skill',
     'msg.last_target_invalid': '上次安装目标已失效，切换到手动选择',
-    
+    'msg.already_up_to_date': '已是最新',
+    'msg.update_complete': '更新完成!',
+    'msg.no_skills_to_update': '没有已安装的技能可更新',
+    'msg.update_summary_updated': '已更新',
+    'msg.update_summary_skipped': '已是最新',
+    'msg.update_summary_failed': '失败',
+    'prompt.select_skills_to_update': '选择要更新的 Skills（空格选择，回车确认）',
+    'help.cmd.update_all': '更新全部已安装的技能',
+
     // Doctor messages
     'msg.doctor_desymlink_scan': '正在扫描符号链接...',
     'msg.doctor_no_symlinks': '未找到符号链接',
@@ -190,7 +198,15 @@ const translations = {
     'msg.created': 'Created',
     'msg.init_hint': 'Edit SKILL.md to customize your skill',
     'msg.last_target_invalid': 'Last install target is no longer valid, switching to manual selection',
-    
+    'msg.already_up_to_date': 'Already up to date',
+    'msg.update_complete': 'Update complete!',
+    'msg.no_skills_to_update': 'No installed skills to update',
+    'msg.update_summary_updated': 'Updated',
+    'msg.update_summary_skipped': 'Up to date',
+    'msg.update_summary_failed': 'Failed',
+    'prompt.select_skills_to_update': 'Select skills to update (space to select, enter to confirm)',
+    'help.cmd.update_all': 'Update all installed skills',
+
     // Doctor messages
     'msg.doctor_desymlink_scan': 'Scanning for symlinks...',
     'msg.doctor_no_symlinks': 'No symlinks found',

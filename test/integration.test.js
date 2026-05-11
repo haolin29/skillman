@@ -53,7 +53,7 @@ metadata:
     assert.strictEqual(installed.length, 1);
     
     // Uninstall
-    await uninstallSkill('my-skill', registry);
+    await uninstallSkill('my-skill', 'qoder', registry);
     
     const afterUninstall = await registry.load();
     assert.strictEqual(afterUninstall.length, 0);

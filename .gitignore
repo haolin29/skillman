@@ -25,3 +25,6 @@ dist/
 # docs
 .claude/
 docs/superpowers/
+
+# Worktrees
+.worktrees/

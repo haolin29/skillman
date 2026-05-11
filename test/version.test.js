@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { InstalledSkillRegistry, getInstalledSkillsPath, formatInstalledSkills, uninstallSkill } from '../src/version.js';
+import { InstalledSkillRegistry, getInstalledSkillsPath, formatInstalledSkills, uninstallSkill, updateSkill } from '../src/version.js';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
@@ -148,16 +148,17 @@ test('uninstallSkill removes skill from registry and filesystem', async () => {
   const registry = new InstalledSkillRegistry(registryPath);
   await registry.add({
     name: 'test-skill',
+    agent: 'test-agent',
     version: '1.0.0',
     targetPath: skillTargetPath
   });
-  
+
   // Verify skill exists
   let skills = await registry.load();
   assert.strictEqual(skills.length, 1);
-  
+
   // Uninstall
-  await uninstallSkill('test-skill', registry);
+  await uninstallSkill('test-skill', 'test-agent', registry);
   
   // Verify removed from registry
   skills = await registry.load();
@@ -170,7 +171,160 @@ test('uninstallSkill removes skill from registry and filesystem', async () => {
   } catch {
     // Expected - directory should not exist
   }
-  
+
   // Cleanup
+  await fs.rm(tmpDir, { recursive: true });
+});
+
+test('InstalledSkillRegistry.add supports same skill name in different agents', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'skillman-test-'));
+  const registryPath = path.join(tmpDir, 'installed.json');
+  const registry = new InstalledSkillRegistry(registryPath);
+
+  await registry.add({ name: 'brainstorming', agent: 'claude', version: '1.0.0', scope: 'global', targetPath: '/a' });
+  await registry.add({ name: 'brainstorming', agent: 'cursor', version: '1.0.0', scope: 'global', targetPath: '/b' });
+
+  const skills = await registry.load();
+  assert.strictEqual(skills.length, 2);
+
+  await fs.rm(tmpDir, { recursive: true });
+});
+
+test('InstalledSkillRegistry.find requires (name, agent) and returns exact match', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'skillman-test-'));
+  const registryPath = path.join(tmpDir, 'installed.json');
+  const registry = new InstalledSkillRegistry(registryPath);
+
+  await registry.add({ name: 'brainstorming', agent: 'claude', version: '1.0.0', scope: 'global', targetPath: '/a' });
+  await registry.add({ name: 'brainstorming', agent: 'cursor', version: '2.0.0', scope: 'global', targetPath: '/b' });
+
+  const found = await registry.find('brainstorming', 'claude');
+  assert.strictEqual(found.agent, 'claude');
+  assert.strictEqual(found.version, '1.0.0');
+
+  const notFound = await registry.find('brainstorming', 'zed');
+  assert.strictEqual(notFound, undefined);
+
+  await fs.rm(tmpDir, { recursive: true });
+});
+
+test('InstalledSkillRegistry.findByName returns all entries with that name', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'skillman-test-'));
+  const registryPath = path.join(tmpDir, 'installed.json');
+  const registry = new InstalledSkillRegistry(registryPath);
+
+  await registry.add({ name: 'brainstorming', agent: 'claude', version: '1.0.0', scope: 'global', targetPath: '/a' });
+  await registry.add({ name: 'brainstorming', agent: 'cursor', version: '1.0.0', scope: 'global', targetPath: '/b' });
+  await registry.add({ name: 'other-skill',   agent: 'claude', version: '1.0.0', scope: 'global', targetPath: '/c' });
+
+  const results = await registry.findByName('brainstorming');
+  assert.strictEqual(results.length, 2);
+  assert.ok(results.every(s => s.name === 'brainstorming'));
+
+  const none = await registry.findByName('nonexistent');
+  assert.deepStrictEqual(none, []);
+
+  await fs.rm(tmpDir, { recursive: true });
+});
+
+test('updateSkill skips when source version matches installed version', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'skillman-test-'));
+  const registryPath = path.join(tmpDir, 'installed.json');
+  const sourcePath = path.join(tmpDir, 'source');
+  const targetPath = path.join(tmpDir, 'target');
+
+  await fs.mkdir(sourcePath);
+  await fs.writeFile(path.join(sourcePath, 'SKILL.md'),
+    '---\nname: test-skill\nmetadata:\n  version: 1.0.0\n---\n# test');
+  await fs.mkdir(targetPath);
+  await fs.writeFile(path.join(targetPath, 'SKILL.md'),
+    '---\nname: test-skill\nmetadata:\n  version: 1.0.0\n---\n# test');
+
+  const registry = new InstalledSkillRegistry(registryPath);
+  await registry.add({
+    name: 'test-skill',
+    agent: 'claude',
+    version: '1.0.0',
+    isHash: false,
+    sourcePath,
+    targetPath
+  });
+
+  const result = await updateSkill('test-skill', 'claude', registry);
+
+  assert.strictEqual(result.success, true);
+  assert.strictEqual(result.skipped, true);
+  assert.strictEqual(result.oldVersion, '1.0.0');
+  assert.strictEqual(result.newVersion, '1.0.0');
+
+  await fs.rm(tmpDir, { recursive: true });
+});
+
+test('updateSkill copies and updates registry when version changed', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'skillman-test-'));
+  const registryPath = path.join(tmpDir, 'installed.json');
+  const sourcePath = path.join(tmpDir, 'source');
+  const targetPath = path.join(tmpDir, 'target');
+
+  await fs.mkdir(sourcePath);
+  await fs.writeFile(path.join(sourcePath, 'SKILL.md'),
+    '---\nname: test-skill\nmetadata:\n  version: 2.0.0\n---\n# test v2');
+  await fs.mkdir(targetPath);
+  await fs.writeFile(path.join(targetPath, 'SKILL.md'),
+    '---\nname: test-skill\nmetadata:\n  version: 1.0.0\n---\n# test v1');
+
+  const registry = new InstalledSkillRegistry(registryPath);
+  await registry.add({
+    name: 'test-skill',
+    agent: 'claude',
+    version: '1.0.0',
+    isHash: false,
+    sourcePath,
+    targetPath
+  });
+
+  const result = await updateSkill('test-skill', 'claude', registry);
+
+  assert.strictEqual(result.success, true);
+  assert.strictEqual(result.skipped, false);
+  assert.strictEqual(result.oldVersion, '1.0.0');
+  assert.strictEqual(result.newVersion, '2.0.0');
+
+  const updated = await registry.find('test-skill', 'claude');
+  assert.strictEqual(updated.version, '2.0.0');
+
+  const targetContent = await fs.readFile(path.join(targetPath, 'SKILL.md'), 'utf-8');
+  assert.ok(targetContent.includes('2.0.0'));
+
+  await fs.rm(tmpDir, { recursive: true });
+});
+
+test('updateSkill returns failure when skill not in registry', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'skillman-test-'));
+  const registryPath = path.join(tmpDir, 'installed.json');
+  const registry = new InstalledSkillRegistry(registryPath);
+
+  const result = await updateSkill('nonexistent', 'claude', registry);
+
+  assert.strictEqual(result.success, false);
+  assert.ok(result.message.length > 0);
+
+  await fs.rm(tmpDir, { recursive: true });
+});
+
+test('InstalledSkillRegistry.remove removes only the (name, agent) entry', async () => {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'skillman-test-'));
+  const registryPath = path.join(tmpDir, 'installed.json');
+  const registry = new InstalledSkillRegistry(registryPath);
+
+  await registry.add({ name: 'brainstorming', agent: 'claude', version: '1.0.0', scope: 'global', targetPath: '/a' });
+  await registry.add({ name: 'brainstorming', agent: 'cursor', version: '1.0.0', scope: 'global', targetPath: '/b' });
+
+  await registry.remove('brainstorming', 'claude');
+
+  const remaining = await registry.load();
+  assert.strictEqual(remaining.length, 1);
+  assert.strictEqual(remaining[0].agent, 'cursor');
+
   await fs.rm(tmpDir, { recursive: true });
 });
