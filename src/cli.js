@@ -649,17 +649,18 @@ async function uninstallCommand(skillName, dryRun) {
     }
 
     // Group by agent
+    const agents = await loadAgents();
     const agentGroups = new Map();
     for (const s of allSkills) {
       if (!agentGroups.has(s.agent)) agentGroups.set(s.agent, []);
       agentGroups.get(s.agent).push(s);
     }
 
-    // Build agent select list
+    // Build agent select list using displayName where available
     const agentChoices = [
-      ...Array.from(agentGroups.entries()).map(([agent, skills]) => ({
-        name: `${agent}  (${skills.length})`,
-        value: agent,
+      ...Array.from(agentGroups.entries()).map(([agentName, skills]) => ({
+        name: `${agents[agentName]?.displayName ?? agentName}  (${skills.length})`,
+        value: agentName,
       })),
       new Separator(),
       { name: t('prompt.select_agent_all') || 'all  (show all)', value: '__all__' },
@@ -674,10 +675,10 @@ async function uninstallCommand(skillName, dryRun) {
       ? allSkills
       : agentGroups.get(selectedAgent);
 
-    // Build checkbox; show (agent) only in all-mode
+    // Build checkbox; show displayName in all-mode
     const showAgent = selectedAgent === '__all__';
     const interactiveChoices = filteredSkills.map(s => ({
-      name: `${s.name}${formatVersion(s.version, s.isHash) ? `@${formatVersion(s.version, s.isHash)}` : ''} [${s.scope === 'global' ? 'G' : 'W'}]${showAgent ? ` (${s.agent})` : ''}`,
+      name: `${s.name}${formatVersion(s.version, s.isHash) ? `@${formatVersion(s.version, s.isHash)}` : ''} [${s.scope === 'global' ? 'G' : 'W'}]${showAgent ? ` (${agents[s.agent]?.displayName ?? s.agent})` : ''}`,
       value: s,
       checked: false,
     }));
