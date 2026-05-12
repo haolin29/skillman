@@ -109,6 +109,9 @@ const translations = {
     'prompt.select_workspace': '选择 Workspace 路径',
     'prompt.new_path': '输入新路径...',
     'prompt.uninstall': '确认卸载',
+    'prompt.select_agent': '选择 agent',
+    'prompt.select_agent_all': 'all  (显示全部)',
+    'prompt.select_skills_to_uninstall': '选择要卸载的技能',
     
     // Options
     'option.global': '全局',
@@ -229,6 +232,9 @@ const translations = {
     'prompt.select_workspace': 'Select workspace path',
     'prompt.new_path': 'Enter new path...',
     'prompt.uninstall': 'Confirm uninstall',
+    'prompt.select_agent': 'Select agent',
+    'prompt.select_agent_all': 'all  (show all)',
+    'prompt.select_skills_to_uninstall': 'Select skills to uninstall',
     
     // Options
     'option.global': 'Global',
