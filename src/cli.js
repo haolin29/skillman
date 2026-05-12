@@ -639,12 +639,90 @@ async function listSkills() {
 
 // Uninstall a skill
 async function uninstallCommand(skillName, dryRun) {
+  const registry = new InstalledSkillRegistry();
+
   if (!skillName) {
-    log.error(t('error.no_skill_name') || 'Please specify a skill name');
-    process.exit(1);
+    const allSkills = await registry.load();
+    if (allSkills.length === 0) {
+      log.error(t('msg.no_installed_skills'));
+      process.exit(1);
+    }
+
+    // Group by agent
+    const agentGroups = new Map();
+    for (const s of allSkills) {
+      if (!agentGroups.has(s.agent)) agentGroups.set(s.agent, []);
+      agentGroups.get(s.agent).push(s);
+    }
+
+    // Build agent select list
+    const agentChoices = [
+      ...Array.from(agentGroups.entries()).map(([agent, skills]) => ({
+        name: `${agent}  (${skills.length})`,
+        value: agent,
+      })),
+      new Separator(),
+      { name: t('prompt.select_agent_all') || 'all  (show all)', value: '__all__' },
+    ];
+
+    const selectedAgent = await select({
+      message: t('prompt.select_agent') || 'Select agent:',
+      choices: agentChoices,
+    });
+
+    const filteredSkills = selectedAgent === '__all__'
+      ? allSkills
+      : agentGroups.get(selectedAgent);
+
+    // Build checkbox; show (agent) only in all-mode
+    const showAgent = selectedAgent === '__all__';
+    const interactiveChoices = filteredSkills.map(s => ({
+      name: `${s.name}${formatVersion(s.version, s.isHash) ? `@${formatVersion(s.version, s.isHash)}` : ''} [${s.scope === 'global' ? 'G' : 'W'}]${showAgent ? ` (${s.agent})` : ''}`,
+      value: s,
+      checked: false,
+    }));
+
+    const selected = await skillCheckbox({
+      message: t('prompt.select_skills_to_uninstall') || 'Select skills to uninstall:',
+      choices: interactiveChoices,
+      pageSize: 15,
+    });
+
+    if (selected.length === 0) {
+      log.info(t('msg.cancelled'));
+      return;
+    }
+
+    if (dryRun) {
+      for (const s of selected) {
+        log.dry(`${t('msg.uninstalling')}: ${s.name} (${s.agent})`);
+        log.dry(`  ${t('msg.target')}: ${s.targetPath}`);
+      }
+      return;
+    }
+
+    const interactiveLabel = `(${selected.length} 项)`;
+    const interactiveConfirmed = await confirm({
+      message: `${t('prompt.uninstall')} ${interactiveLabel}?`,
+      default: false,
+    });
+
+    if (!interactiveConfirmed) {
+      log.info(t('msg.cancelled'));
+      return;
+    }
+
+    for (const s of selected) {
+      const success = await uninstallSkill(s.name, s.agent, registry);
+      if (success) {
+        log.success(`${t('msg.uninstalled')}: ${s.name} (${s.agent})`);
+      } else {
+        log.error(`${t('error.unknown') || 'Unknown error'}: ${s.name}`);
+      }
+    }
+    return;
   }
 
-  const registry = new InstalledSkillRegistry();
   const matches = await registry.findByName(skillName);
 
   if (matches.length === 0) {
