@@ -34,11 +34,10 @@ describe('History Management', () => {
   describe('loadHistory', () => {
     it('should return default values when file does not exist', async () => {
       const result = await loadHistory('test-agent');
-      
+
       assert.deepStrictEqual(result, {
         workspaces: [],
         lastAgent: null,
-        lastScope: null,
         lastInstallTarget: null
       });
     });
@@ -49,8 +48,7 @@ describe('History Management', () => {
           workspaces: ['/path/to/workspace1', '/path/to/workspace2'],
           updatedAt: new Date().toISOString()
         },
-        lastAgent: 'test-agent',
-        lastScope: 'workspace'
+        lastAgent: 'test-agent'
       };
       await fs.writeFile(
         process.env.SKILLMAN_HISTORY_FILE,
@@ -58,26 +56,25 @@ describe('History Management', () => {
       );
 
       const result = await loadHistory('test-agent');
-      
+
       assert.strictEqual(result.workspaces.length, 2);
       assert.strictEqual(result.lastAgent, 'test-agent');
-      assert.strictEqual(result.lastScope, 'workspace');
     });
 
     it('should load lastInstallTarget from history file', async () => {
+      const perAgentTarget = {
+        agent: 'test-agent',
+        scope: 'workspace',
+        workspaceRoot: '/path/to/workspace1',
+        updatedAt: '2026-05-06T12:34:56.000Z'
+      };
       const historyData = {
         'test-agent': {
           workspaces: ['/path/to/workspace1'],
+          lastInstallTarget: perAgentTarget,
           updatedAt: new Date().toISOString()
         },
-        lastAgent: 'test-agent',
-        lastScope: 'workspace',
-        lastInstallTarget: {
-          agent: 'test-agent',
-          scope: 'workspace',
-          workspaceRoot: '/path/to/workspace1',
-          updatedAt: '2026-05-06T12:34:56.000Z'
-        }
+        lastAgent: 'test-agent'
       };
 
       await fs.writeFile(
@@ -85,27 +82,30 @@ describe('History Management', () => {
         JSON.stringify(historyData, null, 2)
       );
 
+      // loadHistory with agentName returns per-agent lastInstallTarget
       const result = await loadHistory('test-agent');
-      assert.deepStrictEqual(result.lastInstallTarget, historyData.lastInstallTarget);
+      assert.deepStrictEqual(result.lastInstallTarget, perAgentTarget);
+
+      // loadHistory without agentName returns global lastInstallTarget (null here)
+      const globalResult = await loadHistory();
+      assert.strictEqual(globalResult.lastInstallTarget, null);
     });
   });
 
   describe('saveLastUsed', () => {
-    it('should save last agent and scope', async () => {
-      await saveLastUsed('qoder', 'global');
-      
+    it('should save last agent', async () => {
+      await saveLastUsed('qoder');
+
       const result = await loadHistory();
       assert.strictEqual(result.lastAgent, 'qoder');
-      assert.strictEqual(result.lastScope, 'global');
     });
 
     it('should update existing data without overwriting agent workspaces', async () => {
       await addWorkspace('qoder', '/path/to/workspace');
-      await saveLastUsed('qoder', 'workspace');
-      
+      await saveLastUsed('qoder');
+
       const result = await loadHistory('qoder');
       assert.strictEqual(result.lastAgent, 'qoder');
-      assert.strictEqual(result.lastScope, 'workspace');
       assert.strictEqual(result.workspaces.length, 1);
     });
   });
@@ -113,7 +113,7 @@ describe('History Management', () => {
   describe('saveLastInstallTarget', () => {
     it('should save last install target without overwriting workspace history', async () => {
       await addWorkspace('qoder', '/path/to/workspace');
-      await saveLastUsed('qoder', 'workspace');
+      await saveLastUsed('qoder');
 
       await saveLastInstallTarget({
         agent: 'qoder',
@@ -121,10 +121,9 @@ describe('History Management', () => {
         workspaceRoot: '/path/to/workspace'
       });
 
+      // per-agent result
       const result = await loadHistory('qoder');
-
       assert.strictEqual(result.lastAgent, 'qoder');
-      assert.strictEqual(result.lastScope, 'workspace');
       assert.strictEqual(result.workspaces.length, 1);
       assert.strictEqual(result.workspaces[0], path.resolve('/path/to/workspace'));
       assert.strictEqual(result.lastInstallTarget.agent, 'qoder');
@@ -134,6 +133,10 @@ describe('History Management', () => {
         path.resolve('/path/to/workspace')
       );
       assert.ok(result.lastInstallTarget.updatedAt);
+
+      // global result should also reflect the last install target
+      const globalResult = await loadHistory();
+      assert.strictEqual(globalResult.lastInstallTarget.agent, 'qoder');
     });
 
     it('should save global last install target with null workspaceRoot', async () => {

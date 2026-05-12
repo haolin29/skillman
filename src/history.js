@@ -48,14 +48,14 @@ export async function loadHistory(agentName) {
     return {
       workspaces: history[agentName]?.workspaces || [],
       lastAgent: history.lastAgent || null,
-      lastScope: history.lastScope || null,
-      lastInstallTarget: history.lastInstallTarget || null
+      lastInstallTarget: agentName
+        ? (history[agentName]?.lastInstallTarget || null)
+        : (history.lastInstallTarget || null)
     };
   } catch {
     return {
       workspaces: [],
       lastAgent: null,
-      lastScope: null,
       lastInstallTarget: null
     };
   }
@@ -80,7 +80,7 @@ export async function saveHistory(agentName, workspaces) {
   await fs.writeFile(historyFile, JSON.stringify(data, null, 2));
 }
 
-export async function saveLastUsed(agentName, scope) {
+export async function saveLastUsed(agentName) {
   await ensureDir();
   const historyFile = getHistoryFile();
   let data = {};
@@ -92,7 +92,6 @@ export async function saveLastUsed(agentName, scope) {
   }
   
   if (agentName) data.lastAgent = agentName;
-  if (scope) data.lastScope = scope;
   data.updatedAt = new Date().toISOString();
   
   await fs.writeFile(historyFile, JSON.stringify(data, null, 2));
@@ -117,7 +116,7 @@ export async function saveLastInstallTarget(target) {
     // File doesn't exist or is invalid
   }
 
-  data.lastInstallTarget = {
+  const entry = {
     agent: target.agent,
     scope: target.scope,
     workspaceRoot: target.scope === 'workspace'
@@ -125,6 +124,12 @@ export async function saveLastInstallTarget(target) {
       : null,
     updatedAt: new Date().toISOString()
   };
+
+  data.lastInstallTarget = entry;
+
+  if (!data[target.agent]) data[target.agent] = {};
+  data[target.agent].lastInstallTarget = entry;
+
   data.updatedAt = new Date().toISOString();
 
   await fs.writeFile(historyFile, JSON.stringify(data, null, 2));

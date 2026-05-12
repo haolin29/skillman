@@ -330,25 +330,26 @@ async function installFromUrl(url, dryRun) {
 // Continue installation after skill selection (multiple skills)
 async function continueInstallMultiple(selectedSkills, dryRun, sourceUrl = null) {
   // Load last used preferences
-  const { lastAgent, lastScope, lastInstallTarget } = await loadHistory();
+  const { lastAgent, lastInstallTarget } = await loadHistory();
   const agents = await loadAgents();
   const agentList = Object.values(agents);
   let agent;
   let scope;
   let workspaceRoot = null;
 
-  const reusableTarget = await validateLastInstallTarget(lastInstallTarget, agents);
+  // Step 4: Offer to reuse the entire last install target (agent + scope + path)
+  const globalReusableTarget = await validateLastInstallTarget(lastInstallTarget, agents);
 
-  if (lastInstallTarget && !reusableTarget) {
+  if (lastInstallTarget && !globalReusableTarget) {
     log.warn(t('msg.last_target_invalid'));
   }
 
-  if (reusableTarget) {
+  if (globalReusableTarget) {
     const targetMode = await select({
       message: t('step.select_target_mode') + ':',
       choices: [
         {
-          name: formatLastInstallTargetChoice(reusableTarget, agents, t),
+          name: formatLastInstallTargetChoice(globalReusableTarget, agents, t),
           value: 'last-target'
         },
         {
@@ -360,13 +361,13 @@ async function continueInstallMultiple(selectedSkills, dryRun, sourceUrl = null)
     });
 
     if (targetMode === 'last-target') {
-      agent = agents[reusableTarget.agent];
-      scope = reusableTarget.scope;
-      workspaceRoot = reusableTarget.workspaceRoot;
+      agent = agents[globalReusableTarget.agent];
+      scope = globalReusableTarget.scope;
+      workspaceRoot = globalReusableTarget.workspaceRoot;
     }
   }
 
-  // Step 4: Select agent (with default from history)
+  // Step 5: Select agent (if not already determined by global reuse)
   if (!agent) {
     const defaultAgentIndex = lastAgent
       ? agentList.findIndex(candidate => candidate.name === lastAgent)
@@ -383,30 +384,58 @@ async function continueInstallMultiple(selectedSkills, dryRun, sourceUrl = null)
       pageSize: 10,
       default: defaultAgentIndex >= 0 ? agentChoices[defaultAgentIndex].value : undefined
     });
+
+    log.success(`${t('msg.agent')}: ${agent.displayName}`);
+
+    // Step 6: Offer to reuse last install target for the selected agent.
+    // Skip if global reuse was already shown (avoids duplicate prompt for the same agent).
+    if (!globalReusableTarget) {
+      const { lastInstallTarget: agentLastInstallTarget } = await loadHistory(agent.name);
+      const agentReusableTarget = await validateLastInstallTarget(agentLastInstallTarget, agents);
+
+      if (agentLastInstallTarget && !agentReusableTarget) {
+        log.warn(t('msg.last_target_invalid'));
+      }
+
+      if (agentReusableTarget) {
+        const agentTargetMode = await select({
+          message: t('step.select_target_mode') + ':',
+          choices: [
+            {
+              name: formatLastInstallTargetChoice(agentReusableTarget, agents, t),
+              value: 'last-target'
+            },
+            {
+              name: t('option.choose_target_manually'),
+              value: 'manual'
+            }
+          ],
+          default: 'last-target'
+        });
+
+        if (agentTargetMode === 'last-target') {
+          scope = agentReusableTarget.scope;
+          workspaceRoot = agentReusableTarget.workspaceRoot;
+        }
+      }
+    }
+  } else {
+    log.success(`${t('msg.agent')}: ${agent.displayName}`);
   }
 
-  log.success(`${t('msg.agent')}: ${agent.displayName}`);
-
-  // Step 5: Select scope (with default from history)
+  // Step 7: Select scope (if not already determined)
   if (!scope) {
-    const scopeChoices = [
-      { name: `${t('option.global')} ${c.gray}(${agent.globalSkillsDir})${c.reset}`, value: 'global' },
-      { name: `${t('option.workspace')} ${c.gray}(${t('option.custom_path')})${c.reset}`, value: 'workspace' }
-    ];
-
-    const defaultScopeIndex = lastScope
-      ? scopeChoices.findIndex(candidate => candidate.value === lastScope)
-      : -1;
-
     scope = await select({
       message: t('step.select_scope') + ':',
-      choices: scopeChoices,
-      default: defaultScopeIndex >= 0 ? scopeChoices[defaultScopeIndex].value : undefined
+      choices: [
+        { name: `${t('option.global')} ${c.gray}(${agent.globalSkillsDir})${c.reset}`, value: 'global' },
+        { name: `${t('option.workspace')} ${c.gray}(${t('option.custom_path')})${c.reset}`, value: 'workspace' }
+      ]
     });
   }
 
   // Save preferences for next time
-  await saveLastUsed(agent.name, scope);
+  await saveLastUsed(agent.name);
 
   // Step 6: If workspace scope, ask for workspace path
   if (scope === 'workspace' && !workspaceRoot) {
