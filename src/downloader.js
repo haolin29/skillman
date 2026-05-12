@@ -44,11 +44,24 @@ export function parseUrl(url) {
   // Full GitHub URL with tree/main/path
   const treeMatch = url.match(/github\.com\/([^\/]+)\/([^\/]+)\/tree\/[^\/]+\/(.+)/);
   if (treeMatch) {
-    return { 
-      type: 'github', 
-      url: `https://github.com/${treeMatch[1]}/${treeMatch[2]}.git`, 
+    return {
+      type: 'github',
+      url: `https://github.com/${treeMatch[1]}/${treeMatch[2]}.git`,
       subPath: treeMatch[3],
       ref
+    };
+  }
+
+  // Full GitHub URL with blob/branch/path (file URL → parent directory)
+  const blobMatch = url.match(/github\.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)/);
+  if (blobMatch) {
+    const branch = blobMatch[3];
+    const parentDir = path.posix.dirname(blobMatch[4]);
+    return {
+      type: 'github',
+      url: `https://github.com/${blobMatch[1]}/${blobMatch[2]}.git`,
+      subPath: parentDir === '.' ? null : parentDir,
+      ref: ref || branch,
     };
   }
 
