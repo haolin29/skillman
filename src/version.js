@@ -118,14 +118,19 @@ export class InstalledSkillRegistry {
  * @param {Function} t - Translation function
  * @returns {Array} Formatted lines
  */
-export function formatInstalledSkills(skills, t = (key) => key) {
+export function formatInstalledSkills(skills, t = (key) => key, c = {}) {
   if (skills.length === 0) {
     return [t('msg.no_installed_skills')];
   }
 
+  const reset = c.reset || '';
+  const cyan = c.cyan || '';
+  const gray = c.gray || '';
+  const green = c.green || '';
+  const yellow = c.yellow || '';
+
   const lines = [];
-  lines.push('');
-  
+
   // Group by agent
   const byAgent = skills.reduce((acc, skill) => {
     const agent = skill.agent || 'unknown';
@@ -133,17 +138,25 @@ export function formatInstalledSkills(skills, t = (key) => key) {
     acc[agent].push(skill);
     return acc;
   }, {});
-  
+
+  const maxNameLen = Math.max(...skills.map(s => s.name.length));
+  const maxVersionLen = Math.max(...skills.map(s => formatVersion(s.version, s.isHash).length));
+
   for (const [agent, agentSkills] of Object.entries(byAgent)) {
-    lines.push(`${agent}:`);
-    for (const skill of agentSkills) {
-      const scope = skill.scope === 'global' ? 'G' : 'W';
+    lines.push(`  ${cyan}${agent}${reset}  ${gray}(${agentSkills.length})${reset}`);
+    agentSkills.forEach((skill, i) => {
+      const isLast = i === agentSkills.length - 1;
+      const tree = isLast ? '└─' : '├─';
       const version = formatVersion(skill.version, skill.isHash);
-      lines.push(`  ${skill.name}@${version} [${scope}]`);
-    }
+      const namePad = skill.name.padEnd(maxNameLen);
+      const versionPad = version.padEnd(maxVersionLen);
+      const scopeTag = skill.scope === 'global' ? '[G]' : '[W]';
+      const scopeColor = skill.scope === 'global' ? green : yellow;
+      lines.push(`  ${gray}${tree}${reset} ${namePad}  ${gray}${versionPad}${reset}  ${scopeColor}${scopeTag}${reset}`);
+    });
     lines.push('');
   }
-  
+
   return lines;
 }
 

@@ -116,12 +116,12 @@ test('formatInstalledSkills formats skills correctly', () => {
     { name: 'skill-a', version: '1.0.0', agent: 'qoder', scope: 'global' },
     { name: 'skill-b', version: '2.0.0', agent: 'qoder', scope: 'workspace' }
   ];
-  
+
   const result = formatInstalledSkills(skills);
-  
-  assert.ok(result.some(line => line.includes('qoder:')));
-  assert.ok(result.some(line => line.includes('skill-a@1.0.0 [G]')));
-  assert.ok(result.some(line => line.includes('skill-b@2.0.0 [W]')));
+
+  assert.ok(result.some(line => line.includes('qoder')));
+  assert.ok(result.some(line => line.includes('skill-a') && line.includes('1.0.0') && line.includes('[G]')));
+  assert.ok(result.some(line => line.includes('skill-b') && line.includes('2.0.0') && line.includes('[W]')));
 });
 
 test('formatInstalledSkills handles hash versions', () => {
@@ -129,12 +129,11 @@ test('formatInstalledSkills handles hash versions', () => {
     { name: 'versioned-skill', version: '1.2.3', isHash: false, agent: 'qoder', scope: 'global' },
     { name: 'hash-skill', version: 'a1b2c3d4e5f6789012345678abcdef01', isHash: true, agent: 'qoder', scope: 'workspace' }
   ];
-  
+
   const result = formatInstalledSkills(skills);
-  
-  // Versioned skill shows full version, hash skill shows short version (first 8 chars)
-  assert.ok(result.some(line => line.includes('versioned-skill@1.2.3')));
-  assert.ok(result.some(line => line.includes('hash-skill@a1b2c3d4')));
+
+  assert.ok(result.some(line => line.includes('versioned-skill') && line.includes('1.2.3')));
+  assert.ok(result.some(line => line.includes('hash-skill') && line.includes('a1b2c3d4')));
 });
 
 test('uninstallSkill removes skill from registry and filesystem', async () => {

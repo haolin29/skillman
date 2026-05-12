@@ -599,10 +599,10 @@ async function selectSkills(skills, message = null) {
 async function listSkills() {
   const registry = new InstalledSkillRegistry();
   const skills = await registry.load();
-  
-  console.log(`\n${c.cyan}${t('msg.installed_skills')}:${c.reset}\n`);
-  
-  const lines = formatInstalledSkills(skills, t);
+
+  console.log(`\n${c.cyan}${t('msg.installed_skills')}${c.reset}  ${c.gray}(${skills.length} total)${c.reset}\n`);
+
+  const lines = formatInstalledSkills(skills, t, c);
   for (const line of lines) {
     console.log(line);
   }
