@@ -657,11 +657,13 @@ async function uninstallCommand(skillName, dryRun) {
     }
 
     // Build agent select list using displayName where available
+    const agentEntries = Array.from(agentGroups.entries());
+    const maxNameLen = Math.max(...agentEntries.map(([n]) => (agents[n]?.displayName ?? n).length));
     const agentChoices = [
-      ...Array.from(agentGroups.entries()).map(([agentName, skills]) => ({
-        name: `${agents[agentName]?.displayName ?? agentName}  (${skills.length})`,
-        value: agentName,
-      })),
+      ...agentEntries.map(([agentName, skills]) => {
+        const label = agents[agentName]?.displayName ?? agentName;
+        return { name: `${label.padEnd(maxNameLen)}  (${skills.length})`, value: agentName };
+      }),
       new Separator(),
       { name: t('prompt.select_agent_all') || 'all  (show all)', value: '__all__' },
     ];
