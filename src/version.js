@@ -9,6 +9,7 @@ import os from 'os';
 import { downloadSkill, parseUrl } from './downloader.js';
 import { formatVersion } from './hash.js';
 import { parseSkillFile, scanSkills } from './scanner.js';
+import { copySkillFiles } from './installer.js';
 
 const CONFIG_DIR = path.join(os.homedir(), '.config', 'skillman');
 
@@ -249,7 +250,8 @@ export async function updateSkill(skillName, agentName, registry = new Installed
       return { success: true, skipped: true, oldVersion, newVersion, message: 'Already up to date' };
     }
 
-    await copyDir(sourcePath, skill.targetPath);
+    const rootLevel = isRemote && sourcePath === tempDownloadPath;
+    await copySkillFiles(sourcePath, skill.targetPath, { rootLevel });
     await registry.add({
       ...skill,
       version: sourceSkill?.version || skill.version,
@@ -267,25 +269,3 @@ export async function updateSkill(skillName, agentName, registry = new Installed
   }
 }
 
-/**
- * Copy directory recursively
- * @param {string} src - Source directory
- * @param {string} dest - Destination directory
- */
-async function copyDir(src, dest) {
-  await fs.mkdir(dest, { recursive: true });
-  const entries = await fs.readdir(src, { withFileTypes: true });
-  
-  for (const entry of entries) {
-    const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
-    
-    if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
-    
-    if (entry.isDirectory()) {
-      await copyDir(srcPath, destPath);
-    } else {
-      await fs.copyFile(srcPath, destPath);
-    }
-  }
-}

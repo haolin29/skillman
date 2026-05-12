@@ -560,7 +560,8 @@ async function continueInstallMultiple(selectedSkills, dryRun, sourceUrl = null)
         isHash: skill.isHash,
         agent: agent.name,
         scope: scope,
-        sourceUrl: sourceUrl
+        sourceUrl: sourceUrl,
+        rootLevel: skill.isRootLevel
       });
       log.success(`${t('msg.target')}: ${targetDir}`);
       installedCount++;

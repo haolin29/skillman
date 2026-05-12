@@ -20,7 +20,7 @@ import { InstalledSkillRegistry } from './version.js';
  * @param {string} metadata.sourceUrl - Original source URL (for remote installs)
  */
 export async function installSkill(srcPath, targetDir, metadata = {}) {
-  await copyDir(srcPath, targetDir);
+  await copySkillFiles(srcPath, targetDir, { rootLevel: metadata.rootLevel });
   
   // Record installation if metadata provided
   if (metadata.name) {
@@ -39,25 +39,37 @@ export async function installSkill(srcPath, targetDir, metadata = {}) {
 }
 
 /**
- * Copy directory recursively
- * @param {string} src - Source directory
- * @param {string} dest - Destination directory
+ * Copy a skill from srcPath to destPath.
+ * When rootLevel is true (SKILL.md is at the repo root rather than in its own subdir),
+ * only SKILL.md is copied — everything else in the repo is irrelevant to the skill.
+ * @param {string} src
+ * @param {string} dest
+ * @param {{ rootLevel?: boolean }} options
+ */
+export async function copySkillFiles(src, dest, { rootLevel = false } = {}) {
+  await fs.mkdir(dest, { recursive: true });
+  if (rootLevel) {
+    await fs.copyFile(path.join(src, 'SKILL.md'), path.join(dest, 'SKILL.md'));
+    return;
+  }
+  await copyDir(src, dest);
+}
+
+/**
+ * Copy directory recursively, skipping hidden files and node_modules
+ * @param {string} src
+ * @param {string} dest
  */
 async function copyDir(src, dest) {
   await fs.mkdir(dest, { recursive: true });
   const entries = await fs.readdir(src, { withFileTypes: true });
-  
+
   for (const entry of entries) {
-    const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
-    
-    // Skip node_modules and hidden files
     if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
-    
     if (entry.isDirectory()) {
-      await copyDir(srcPath, destPath);
+      await copyDir(path.join(src, entry.name), path.join(dest, entry.name));
     } else {
-      await fs.copyFile(srcPath, destPath);
+      await fs.copyFile(path.join(src, entry.name), path.join(dest, entry.name));
     }
   }
 }

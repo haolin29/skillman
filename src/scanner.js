@@ -119,7 +119,8 @@ async function scanSingleDir(dir) {
     if (rootSkillInfo) {
       skills.push({
         ...rootSkillInfo,
-        path: dir
+        path: dir,
+        isRootLevel: true
       });
     }
     
