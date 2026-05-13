@@ -93,12 +93,46 @@ export async function validateLastInstallTarget(lastInstallTarget, agents) {
  */
 export function formatLastInstallTargetChoice(lastInstallTarget, agents, t) {
   const agent = agents[lastInstallTarget.agent];
-  const scopeLabel = t(`option.${lastInstallTarget.scope}`);
+  const scopeLabel = t(`option.${lastInstallTarget.scope}`).toLowerCase();
   const location = lastInstallTarget.scope === 'global'
     ? agent.globalSkillsDir
-    : lastInstallTarget.workspaceRoot;
+    : formatDisplayPath(lastInstallTarget.workspaceRoot);
 
-  return `${t('option.last_install_target')} (${agent.displayName} / ${scopeLabel} / ${location})`;
+  return `${t('option.last_install_target')}: ${agent.displayName} ${scopeLabel} at ${location}`;
+}
+
+/**
+ * Format a filesystem path for compact CLI display.
+ * @param {string} targetPath
+ * @returns {string}
+ */
+export function formatDisplayPath(targetPath) {
+  const home = process.env.HOME;
+  if (!home) {
+    return targetPath;
+  }
+
+  if (targetPath === home) {
+    return '~';
+  }
+
+  if (targetPath.startsWith(`${home}${path.sep}`)) {
+    return `~${targetPath.slice(home.length)}`;
+  }
+
+  return targetPath;
+}
+
+/**
+ * Decide whether the selected agent should get its own target reuse prompt.
+ * @param {Object} params
+ * @param {Object|null} params.agent
+ * @param {string|null} params.scope
+ * @param {Object|null} params.globalReusableTarget
+ * @returns {boolean}
+ */
+export function shouldOfferSelectedAgentLastTarget({ agent, scope, globalReusableTarget = null }) {
+  return Boolean(agent && !scope && globalReusableTarget?.agent !== agent.name);
 }
 
 /**

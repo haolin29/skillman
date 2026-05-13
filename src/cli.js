@@ -21,6 +21,7 @@ import {
   formatLastInstallTargetChoice,
   persistLastInstallTargetIfNeeded,
   resolveInstallRoot,
+  shouldOfferSelectedAgentLastTarget,
   validateLastInstallTarget
 } from './install-target.js';
 
@@ -387,9 +388,8 @@ async function continueInstallMultiple(selectedSkills, dryRun, sourceUrl = null)
 
     log.success(`${t('msg.agent')}: ${agent.displayName}`);
 
-    // Step 6: Offer to reuse last install target for the selected agent.
-    // Skip if global reuse was already shown (avoids duplicate prompt for the same agent).
-    if (!globalReusableTarget) {
+    // Step 6: Offer to reuse last install target for the selected agent when target scope is still open.
+    if (shouldOfferSelectedAgentLastTarget({ agent, scope, globalReusableTarget })) {
       const { lastInstallTarget: agentLastInstallTarget } = await loadHistory(agent.name);
       const agentReusableTarget = await validateLastInstallTarget(agentLastInstallTarget, agents);
 

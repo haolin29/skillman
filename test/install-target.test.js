@@ -11,6 +11,7 @@ import {
   resolveInstallRoot,
   validateLastInstallTarget,
   formatLastInstallTargetChoice,
+  shouldOfferSelectedAgentLastTarget,
   persistLastInstallTargetIfNeeded
 } from '../src/install-target.js';
 
@@ -88,7 +89,7 @@ describe('install-target helpers', () => {
     const label = formatLastInstallTargetChoice({
       agent: 'codex',
       scope: 'workspace',
-      workspaceRoot: '/repo'
+      workspaceRoot: path.join(os.homedir(), 'workspace', 'taskman')
     }, agents, (key) => ({
       'option.last_install_target': 'Last install target',
       'option.workspace': 'Workspace',
@@ -97,7 +98,7 @@ describe('install-target helpers', () => {
 
     assert.strictEqual(
       label,
-      'Last install target (Codex / Workspace / /repo)'
+      'Last install target: Codex workspace at ~/workspace/taskman'
     );
   });
 
@@ -114,7 +115,34 @@ describe('install-target helpers', () => {
 
     assert.strictEqual(
       label,
-      'Last install target (OpenClaw / Global / /Users/test/.openclaw/skills)'
+      'Last install target: OpenClaw global at /Users/test/.openclaw/skills'
+    );
+  });
+
+  it('offers the selected agent last target when global reuse belongs to another agent', () => {
+    assert.strictEqual(
+      shouldOfferSelectedAgentLastTarget({
+        agent: agents.codex,
+        scope: null,
+        globalReusableTarget: { agent: 'openclaw' }
+      }),
+      true
+    );
+    assert.strictEqual(
+      shouldOfferSelectedAgentLastTarget({
+        agent: agents.codex,
+        scope: null,
+        globalReusableTarget: { agent: 'codex' }
+      }),
+      false
+    );
+    assert.strictEqual(
+      shouldOfferSelectedAgentLastTarget({
+        agent: agents.codex,
+        scope: 'workspace',
+        globalReusableTarget: { agent: 'openclaw' }
+      }),
+      false
     );
   });
 
